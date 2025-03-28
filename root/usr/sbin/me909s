@@ -1,0 +1,168 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+lock_modem_at() {
+    local __pid=$1
+    local __dev=$2
+    
+    [ -n "$__pid" ] || return 1
+    if [ -f /tmp/.lock_${__dev}_modem ];then
+        pid=$(cat /tmp/.lock_${__dev}_modem)
+        [ -d /proc/$pid ] && return 1
+    fi
+    
+    echo "$__pid" > /tmp/.lock_${__dev}_modem
+    return 0
+}
+
+unlock_modem_at() {
+    local __dev=$1
+    [ -f /tmp/.lock_${__dev}_modem ] && rm /tmp/.lock_${__dev}_modem
+    return 0
+}
+
+send_at() {
+    local ctl_device="$1"
+    local command="$2"
+    [ -z "$ctl_device" ] && return 1
+    
+    local __at_rsp
+    __at_rsp=$(/usr/bin/sendat "$ctl_device" "$command")
+    
+    # 检查响应是否为空或不包含 "OK"
+    [ -z "$__at_rsp" ] && return 1
+    [ -n "${__at_rsp##*OK*}" ] && return 1
+    
+    echo "$__at_rsp"
+}
+
+cellular(){
+    local ctl_device="$1" interface="$2"
+    [ -z "$ctl_device" ] && return 1
+    local __output __res __sys_mode __rssi __rscp __ecno __rsrp __sinr
+    while true;do
+        [ -e "$ctl_device" ] && return 1
+        lock_modem_at $$ "me909s"
+        [ $? -eq 0 ] || {
+            sleep 5
+            continue
+        }
+        
+        __res="$(uci_get_state network "$interface" imsi)"
+        if [ -z "$__res"  ];then
+            __output=$(send_at "$ctl_device" "AT+CIMI")
+            if [ $? -eq 0 ];then
+                __res=$(echo "$output" | grep -oE '[0-9]+')
+                [ -n "$__res" ] && uci_toggle_state network "$interface" imsi "${__res}"
+            fi
+        fi
+        
+        __res="$(uci_get_state network "$interface" iccid)"
+        if [ -z "$__res"  ];then
+            __output=$(send_at "$ctl_device" "AT^ICCID?")
+            if [ $? -eq 0 ];then
+                __res=$(echo "$output" | grep -oE '[0-9]+')
+                [ -n "$__res" ] && uci_toggle_state network "$interface" iccid "${__res}"
+            fi
+        fi
+        
+        __output=$(send_at "$ctl_device" "AT^CHIPTEMP?")
+        if [ $? -eq 0 ];then
+            __res=$(echo "$__output" | awk -F':' '/\^CHIPTEMP:/ {print $2}')
+            [ -n "$__res" ] && uci_toggle_state network "$interface" temp "${__res}"
+        fi
+        
+        __output=$(send_at "$ctl_device" "AT^HCSQ?")
+        if [ $? -eq 0 ];then
+            __res=$(echo "$__output" |awk -F': ' '/\^HCSQ: / {print $2}')
+            __sys_mode=$(echo "$__res" |cut -d',' -f1 | tr -d '"')
+            case "$__sys_mode" in
+                "GSM")
+                    __rssi=$(echo "$__res" |cut -d',' -f2)
+                    [ ${__rssi} -gt 0 ] && [ ${__rssi} -ne 99 ] && __rssi=$((__rssi-113))
+                ;;
+                "WCDMA")
+                    __rssi=$(echo "$__res" |cut -d',' -f2)
+                    __rscp=$(echo "$__res" |cut -d',' -f3)
+                    __ecno=$(echo "$__res" |cut -d',' -f4)
+                    [ ${__rssi} -gt 0 -a ${__rssi} -ne 99 ] && __rssi=$((__rssi-113))
+                    [ ${__rscp} -gt 0 -a ${__rscp} -ne 255 ] && __rscp=$((__rscp-120))
+                    [ ${__ecno} -gt 0 -a ${__ecno} -ne 255 ] && __ecno=$(echo |awk "{print $__ecno*0.5-24}")
+                ;;
+                "LTE")
+                    __rssi=$(echo "$__res" |cut -d',' -f2)
+                    __rsrp=$(echo "$__res" |cut -d',' -f3)
+                    __sinr=$(echo "$__res" |cut -d',' -f4)
+                    __rsrq=$(echo "$__res" |cut -d',' -f5)
+                    [ ${__rssi} -gt 0 -a ${__rssi} -ne 99 ] && __rssi=$((__rssi-110))
+                    [ ${__rsrp} -gt 0 -a ${__rsrp} -ne 255 ] && __rsrp=$((__rsrp-140))
+                    [ ${__rsrq} -gt 0 -a ${__rsrq} -ne 255 ] && __rsrq=$(echo |awk "{print $__rsrq*0.5-19.5}")
+                ;;
+            esac
+            [ -n "$__sys_mode" ] && uci_toggle_state network "$interface" "mode" "${__sys_mode}"
+            [ -n "$__rssi" ] && uci_toggle_state network "$interface" rssi "${__rssi}"
+            [ -n "$__rscp" ] && uci_toggle_state network "$interface" rscp "${__rscp}"
+            [ -n "$__ecno" ] && uci_toggle_state network "$interface" ecno "${__ecno}"
+            [ -n "$__rsrp" ] && uci_toggle_state network "$interface" rsrp "${__rsrp}"
+            [ -n "$__rsrq" ] && uci_toggle_state network "$interface" rsrq "${__rsrq}"
+            [ -n "$__sinr" ] && uci_toggle_state network "$interface" sinr "${__sinr}"
+        fi
+        
+        
+        __output=$(send_at "$ctl_device" "AT^MONSC")
+        if [ $? -eq 0 ];then
+            __res=$(echo "$__output" |awk -F': ' '/\^MONSC: / {print $2}')
+    
+            __sys_mode=$(echo "$__res" |cut -d',' -f1)
+            case "$__sys_mode" in
+                "GSM")
+                    __mcc=$(echo "$__res" |cut -d',' -f2)
+                    __mnc=$(echo "$__res" |cut -d',' -f3)
+                    __band=$(echo "$__res" |cut -d',' -f4)
+                    case $__band in
+                        0) __band="GSM850" ;;
+                        1) __band="GSM900" ;;
+                        2) __band="GSM1800" ;;
+                        3) __band="GSM1900" ;;
+                    esac
+                    __bsic=$(echo "$__res" |cut -d',' -f5)
+                    __lac=$(echo "$__res" |cut -d',' -f6)
+                    __rxlev=$(echo "$__res" |cut -d',' -f7)
+                ;;
+                "WCDMA")
+                    __mcc=$(echo "$__res" |cut -d',' -f2)
+                    __mnc=$(echo "$__res" |cut -d',' -f3)
+                    __arfcn=$(echo "$__res" |cut -d',' -f4)
+                    __psc=$(echo "$__res" |cut -d',' -f5)
+                    __cellid=$(echo "$__res" |cut -d',' -f6)
+                    __lac=$(echo "$__res" |cut -d',' -f7)
+                    __rscp=$(echo "$__res" |cut -d',' -f8)
+                    __rxlev=$(echo "$__res" |cut -d',' -f9)
+                    __ecno=$(echo "$__res" |cut -d',' -f10)
+                ;;
+                "LTE")
+                    __mcc=$(echo "$__res" |cut -d',' -f2)
+                    __mnc=$(echo "$__res" |cut -d',' -f3)
+                    __arfcn=$(echo "$__res" |cut -d',' -f4)
+                    __cellid=$(echo "$__res" |cut -d',' -f5)
+                    __pci=$(echo "$__res" |cut -d',' -f6)
+                    __tac=$(echo "$__res" |cut -d',' -f7)
+                    __rsrp=$(echo "$__res" |cut -d',' -f8)
+                    __rsrq=$(echo "$__res" |cut -d',' -f9)
+                    __rxlev=$(echo "$__res" |cut -d',' -f10)
+                ;;
+            esac
+            [ -n "$__arfcn" ] && uci_toggle_state network "$interface" arfcn "${__arfcn}"
+            [ -n "$__cellid" ] && uci_toggle_state network "$interface" cellid "${__cellid}"
+            [ -n "$__pci" ] && uci_toggle_state network "$interface" epcel "${__pci}"
+            [ -n "$__lac" ] && uci_toggle_state network "$interface" lac "${__lac}"
+            [ -n "$__tac" ] && uci_toggle_state network "$interface" tac "${__tac}"
+            [ -n "$__rxlev" ] && uci_toggle_state network "$interface" rxlev "${__rxlev}"
+            [ -n "$__band" ] && uci_toggle_state network "$interface" band "${__band}"
+        fi
+        
+        
+        sleep 5
+    done
+}

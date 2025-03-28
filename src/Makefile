@@ -1,14 +1,14 @@
 %.o: %.c
-    $(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(FPIC) -Wall -c -o $@ $<
 
 clean:
 	rm -f sendat *.o
 
 sendat: main.o openDev.o
 	$(CC) $(CFLAGS) -o $@ $^ -lpthread
- 
+
 compile: sendat
 
 install: compile
-    $(INSTALL_DIR) $(DESTDIR)/usr/bin
-    $(INSTALL_BIN) sendat $(DESTDIR)/usr/bin/
+	mkdir -p $(DESTDIR)/usr/bin
+	install -m 0755 sendat $(DESTDIR)/usr/bin/

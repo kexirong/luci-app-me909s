@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 {
 	if (argc < 3)
 	{
-		printf("ERROR demo: sendat 2 'ATI'\n");
+		printf("ERROR demo: sendat /dev/ttyUSB1 'ATI'\n");
 		exit(1);
 		return 0;
 	}
