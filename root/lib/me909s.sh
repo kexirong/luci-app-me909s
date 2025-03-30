@@ -42,7 +42,7 @@ mrd_imei() {
     local ctl_device interface
     local imei=$1
     [ ${#imei} -eq 15 ] || exit 1
-    interface=$(grep "\.model='" /var/state/network | awk -F. '{print $2; exit}')
+    interface=$(grep "\.model='" /var/state/network | awk -F'.' '{print $2}')
     [ -z "$interface" ] && exit 1
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     [ -z "$ctl_device" ] && exit 1
