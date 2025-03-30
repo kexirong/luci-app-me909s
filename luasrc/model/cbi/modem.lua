@@ -1,7 +1,7 @@
 require("luci.sys")
 
-m = Map("ME909s", translate("移远4G模块"))
-m:append(Template("momoe/ec200_status"))
+m = Map("ME909s", translate("鼎桥4G模块"))
+m:append(Template("modem/status"))
 
 s = m:section(TypedSection, "ec200a")
 s.addremove = false

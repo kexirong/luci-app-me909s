@@ -5,7 +5,7 @@
 
 #define TRUE 1
 #define FALSE 0
-#define MAX_BUFF_SIZE (256)
+#define MAX_BUFF_SIZE (384)
 
 typedef struct _serial_parse
 {

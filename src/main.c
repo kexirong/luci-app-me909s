@@ -1,99 +1,138 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-#include <assert.h>
-#include <sys/time.h>
-#include <sys/stat.h>
+#include <stdio.h>    // printf, perror
+#include <stdlib.h>   // exit, EXIT_FAILURE
+#include <unistd.h>   // access, read, write, close
+#include <string.h>   // strlen, strcpy, strcat, strstr, memset
+#include <sys/time.h> // struct timeval, gettimeofday
 #include <fcntl.h>
 #include <termios.h>
-#include <stdarg.h>
-#include <sys/select.h>
-#include <ctype.h>
-#include <errno.h>
-#include <getopt.h>
-#include <signal.h>
+#include <sys/select.h> // select, fd_set
+#include <errno.h>      // errno, perror
 #include "openDev.h"
-#define MAX_PORTS 4
 
-/*判断是否存在*/
-int FileExist(const char *filename)
-{
-	if (filename && access(filename, F_OK) == 0)
-	{
-		return 1;
-	}
-	return 0;
-}
 int main(int argc, char **argv)
 {
-	if (argc < 3)
-	{
-		printf("ERROR demo: sendat /dev/ttyUSB1 'ATI'\n");
-		exit(1);
-		return 0;
-	}
-	int debug = 1;
-	char *serial_dev = argv[1];
-	if (access(serial_dev, F_OK) != 0)
-	{
-		printf("serial device does not exist.\n");
-		return 0;
-	}
-	char *message = argv[2];
-	char *nty = "\r\n";
-	int fd = OpenDev(serial_dev);
-	// 打开串口
-	if (fd >= 0)
-	{
-		set_speed(fd, 19200);
-		// 设置波特率
-	}
-	else
-	{
-		printf("Can't Open Serial Port!\n");
-		exit(1);
-	}
-	// 设置校验位
-	if (set_Parity(fd, 8, 1, 'N') == FALSE)
-	{
-		printf("Set Parity Error\n");
-		exit(1);
-	}
-	ssize_t nread;
+    if (argc < 3)
+    {
+        printf("ERROR demo: sendat /dev/ttyUSB1 'ATI'\n");
+        return 1;
+    }
+    char *serial_dev = argv[1];
+    if (access(serial_dev, F_OK) != 0)
+    {
+        fprintf(stderr, "serial device does not exist\n");
+        return 1;
+    }
+    char *message = argv[2];
+    char *nty = "\r\n";
+    int timeout_sec = 0;
+    if (argc >= 4)
+    {
+        sscanf(argv[3], "%d", &timeout_sec);
+    }
 
-	serial_parse phandle;
-	phandle.rxbuffsize = 0;
-	int messageLen = strlen(message);
-	int ntyLen = strlen(nty);
-	char sendAT[messageLen + ntyLen + 1];
-	strcpy(sendAT, message);
-	strcat(sendAT, nty);
+    int fd = OpenDev(serial_dev);
+    if (fd < 0)
+    {
+        perror("Can't Open Serial Port!\n");
+        return 1;
+    }
 
-	// 写入数据，并检查返回值
-	ssize_t wlen = write(fd, sendAT, strlen(sendAT));
-	if (wlen < 0)
-	{
-		perror("write error");
-		exit(1);
-	}
+    set_speed(fd, 115200);
+    if (set_Parity(fd, 8, 1, 'N') == FALSE)
+    {
+        perror("Set Parity Error\n");
+        close(fd);
+        return 1;
+    }
 
-	usleep(10000);
+    // 发送AT指令
+    int messageLen = strlen(message);
+    int ntyLen = strlen(nty);
+    char sendAT[messageLen + ntyLen + 1];
+    strcpy(sendAT, message);
+    strcat(sendAT, nty);
 
-	// 读取数据，并检查返回值
-	nread = read(fd, phandle.buff + phandle.rxbuffsize, MAX_BUFF_SIZE - phandle.rxbuffsize);
-	if (nread < 0)
-	{
-		perror("read error");
-		exit(1);
-	}
-	phandle.rxbuffsize += nread;
-	phandle.buff[phandle.rxbuffsize] = '\0';
-	printf("%s", phandle.buff);
-	return 0;
+    ssize_t wlen = write(fd, sendAT, strlen(sendAT));
+    if (wlen < 0)
+    {
+        perror("write error");
+        close(fd);
+        return 1;
+    }
+
+    // 准备读取响应
+    serial_parse phandle;
+    phandle.rxbuffsize = 0;
+    memset(phandle.buff, 0, MAX_BUFF_SIZE);
+
+    struct timeval timeout;
+    if (timeout_sec < 2)
+    {
+        timeout.tv_sec = 2; // 2秒超时
+    }
+    else
+    {
+        timeout.tv_sec = timeout_sec;
+    }
+
+    timeout.tv_usec = 0;
+
+    fd_set read_fds;
+    int ret;
+    ssize_t nread;
+
+    // 循环读取直到超时或收到完整响应
+    do
+    {
+        FD_ZERO(&read_fds);
+        FD_SET(fd, &read_fds);
+
+        ret = select(fd + 1, &read_fds, NULL, NULL, &timeout);
+        if (ret < 0)
+        {
+            perror("select error");
+            close(fd);
+            return 1;
+        }
+        else if (ret == 0)
+        {
+            fprintf(stderr, "timeout waiting for response\n");
+            close(fd);
+            return 1;
+        }
+
+        if (FD_ISSET(fd, &read_fds))
+        {
+            nread = read(fd, phandle.buff + phandle.rxbuffsize, MAX_BUFF_SIZE - phandle.rxbuffsize - 1);
+            if (nread < 0)
+            {
+                perror("read error");
+                close(fd);
+                return 1;
+            }
+            else if (nread == 0)
+            {
+                break;
+            }
+
+            phandle.rxbuffsize += nread;
+            // 检查是否缓冲区溢出
+            if (phandle.rxbuffsize >= MAX_BUFF_SIZE - 1)
+            {
+                fprintf(stderr, "buffer overflow\n");
+                close(fd);
+                return 1;
+            }
+
+            if (strstr(phandle.buff, "OK\r\n") || strstr(phandle.buff, "ERROR"))
+            {
+                break;
+            }
+        }
+    } while (1);
+
+    printf("%s", phandle.buff);
+
+    close(fd);
+    return 0;
 }
