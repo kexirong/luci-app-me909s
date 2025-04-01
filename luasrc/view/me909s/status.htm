@@ -1,0 +1,36 @@
+<%+header%>
+<fieldset class="cbi-section">
+    <% if not template.status_data.model then %>
+    <legend class="error"><%:未检测到ME909S模块%></legend>
+    <% else %>
+    <legend><%:ME909S 模块状态%></legend>
+
+   
+    <table width="100%" cellspacing="10">
+        <tr>
+            <td width="16%"><%:Manufacturer%></td><td width="16%"><%= template.status_data.manufacturer %></td>
+            <td width="16%"><%:Model%></td><td width="16%"><%= template.status_data.model %></td>
+            <td width="16%"><%= (template.status_data.simslot == "1") and "SIM" or "eSIM" %></td><td width="16%"><%= template.status_data.temp %></td>
+        </tr>
+        <tr>
+            <td width="16%"><%:Operator%></td><td width="16%"><%= template.status_data.operator %></td>
+            <td width="16%"><%:Mode%></td><td width="16%"><%= template.status_data.mode %></td>
+            <td width="16%"><%:Band%></td><td width="16%"><%= template.status_data.band %></td>
+        </tr>
+        <tr>
+            <td width="16%"><%:PCI%></td><td width="16%"><%= template.status_data.pci %></td>
+            <td width="16%"><%:Arfcn%></td><td width="16%"><%= template.status_data.arfcn %></td>
+            <td width="16%"><%:Rxlev%></td><td width="16%"><%= template.status_data.rxlev %></td>
+        </tr>
+        <tr>
+            <td width="16%"><%:TAC%></td><td width="16%"><%= template.status_data.tac %></td>
+            <td width="16%"><%:Rsrp%></td><td width="16%"><%= template.status_data.rsrp %></td>
+            <td width="16%"><%:Rsrq%></td><td width="16%"><%= template.status_data.rsrq %></td>
+        </tr>
+    
+	</table>
+    <% end %>
+</fieldset>
+<%+footer%>
+ 
+ 

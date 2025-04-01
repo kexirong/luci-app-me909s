@@ -191,7 +191,7 @@ cellular(){
                     # __psc=$(echo "$__res" |cut -d',' -f5)
                     __cellid=$(echo "$__res" |cut -d',' -f6)
                     __lac=$(echo "$__res" |cut -d',' -f7)
-                    __rscp=$(echo "$__res" |cut -d',' -f8)
+                    __rsrp=$(echo "$__res" |cut -d',' -f8)
                     __rxlev=$(echo "$__res" |cut -d',' -f9)
                     # __ecno=$(echo "$__res" |cut -d',' -f10)
                 ;;
