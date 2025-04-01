@@ -1,36 +1,34 @@
-<%+header%>
 <fieldset class="cbi-section">
-    <% if not template.status_data.model then %>
+    <% if not next(self.status_data) then %>
     <legend class="error"><%:未检测到ME909S模块%></legend>
     <% else %>
     <legend><%:ME909S 模块状态%></legend>
 
    
-    <table width="100%" cellspacing="10">
-        <tr>
-            <td width="16%"><%:Manufacturer%></td><td width="16%"><%= template.status_data.manufacturer %></td>
-            <td width="16%"><%:Model%></td><td width="16%"><%= template.status_data.model %></td>
-            <td width="16%"><%= (template.status_data.simslot == "1") and "SIM" or "eSIM" %></td><td width="16%"><%= template.status_data.temp %></td>
-        </tr>
-        <tr>
-            <td width="16%"><%:Operator%></td><td width="16%"><%= template.status_data.operator %></td>
-            <td width="16%"><%:Mode%></td><td width="16%"><%= template.status_data.mode %></td>
-            <td width="16%"><%:Band%></td><td width="16%"><%= template.status_data.band %></td>
-        </tr>
-        <tr>
-            <td width="16%"><%:PCI%></td><td width="16%"><%= template.status_data.pci %></td>
-            <td width="16%"><%:Arfcn%></td><td width="16%"><%= template.status_data.arfcn %></td>
-            <td width="16%"><%:Rxlev%></td><td width="16%"><%= template.status_data.rxlev %></td>
-        </tr>
-        <tr>
-            <td width="16%"><%:TAC%></td><td width="16%"><%= template.status_data.tac %></td>
-            <td width="16%"><%:Rsrp%></td><td width="16%"><%= template.status_data.rsrp %></td>
-            <td width="16%"><%:Rsrq%></td><td width="16%"><%= template.status_data.rsrq %></td>
-        </tr>
+    <div class="table">
+        <div class="tr">
+            <div class="td"><%:Manufacturer%></div><div class="td"><%= self.status_data.manufacturer %></div>
+            <div class="td"><%:Model%></div><div class="td"><%= self.status_data.model %></div>
+            <div class="td"><%= (self.status_data.simslot == "1") and "SIM" or "eSIM" %></div><div class="td"><%= self.status_data.sim %></div>
+        </div>
+        <div class="tr">
+            <div class="td"><%:Operator%></div><div class="td"><%= self.status_data.operator %></div>
+            <div class="td"><%:Mode%></div><div class="td"><%= self.status_data.mode %></div>
+            <div class="td"><%:Band%></div><div class="td"><%= self.status_data.band %></div>
+        </div>
+        <div class="tr">
+            <div class="td"><%:PCI%></div><div class="td"><%= self.status_data.pci %></div>
+            <div class="td"><%:Arfcn%></div><div class="td"><%= self.status_data.arfcn %></div>
+            <div class="td"><%:Rxlev%></div><div class="td"><%= self.status_data.rxlev %></div>
+        </div>
+        <div class="tr">
+            <div class="td"><%:TAC%></div><div class="td"><%= self.status_data.tac %></div>
+            <div class="td"><%:Rsrp%></div><div class="td"><%= self.status_data.rsrp %></div>
+            <div class="td"><%:Rsrq%></div><div class="td"><%= self.status_data.rsrq %></div>
+        </div>
     
-	</table>
+	</div>
     <% end %>
 </fieldset>
-<%+footer%>
  
  

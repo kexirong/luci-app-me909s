@@ -47,9 +47,9 @@ modem_init() {
 find_ndis_iface() {
     local cfg="$1"
     local proto
-    __FIND_NDIS_IFACE=1
     config_get proto "$cfg" proto
     [ "$proto" = ndis ] || return 0
+    __FIND_NDIS_IFACE=1
     #关闭接口
     proto_set_available "$cfg" 0
     #初始化
@@ -74,6 +74,7 @@ set network.wwan.proto='ndis'
 set network.wwan.simslot='1'
 EOF
     uci commit network
+    config_load network
     config_foreach find_ndis_iface interface
 fi
 
