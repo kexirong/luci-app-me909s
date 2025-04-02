@@ -2,20 +2,30 @@
 
 [ "$ACTION" = "add" ] && [ "$DEVTYPE" = "usb_device" ] || exit 0
 
+. /lib/me909s.sh
 . /lib/functions.sh
 . /lib/netifd/netifd-proto.sh
-. /lib/me909s.sh
 
 vid=$(cat /sys$DEVPATH/idVendor)
 pid=$(cat /sys$DEVPATH/idProduct)
 usb="/lib/network/wwan/$vid:$pid"
 [ -f $usb ] || exit 0
-__FIND_NDIS_IFACE=0
+__FIND_ECM_IFACE=0
+iface=''
+for device in /sys/bus/usb/devices/*; do
+    [ -d "$device/net" ] && iface=$(ls "$device/net")
+    if [ -f "$device/idVendor" ] && [ -f "$device/idProduct" ]; then
+        vendor=$(cat "$device/idVendor")
+        product=$(cat "$device/idProduct")
+        conf="/lib/network/wwan/${vendor}:${product}"
+        [ -f "$conf" ] && { usb="$conf"; devicename="$device"; break; }
+    fi
+done
 
 modem_init() {
     local interface=$1
     local old_cb control data
-    json_set_namespace ndis old_cb
+    json_set_namespace ecm old_cb
     json_init
     json_load "$(cat $usb)"
     json_select
@@ -63,7 +73,7 @@ find_ndis_iface() {
 config_load network
 config_foreach find_ndis_iface interface
 
-if [ $__FIND_NDIS_IFACE -eq 0 ];then
+if [ $__FIND_ECM_IFACE -eq 0 ];then
     uci -q batch <<EOF
 delete network.wwan
 set network.wwan='interface'

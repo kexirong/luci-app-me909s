@@ -1,14 +1,11 @@
 #!/bin/sh
-
-. /lib/functions.sh
-. ../netifd-proto.sh
 . /lib/me909s.sh
-init_proto "$@"
 
-INCLUDE_ONLY=1
-
-ctl_device=""
-dat_device=""
+[ -n "$INCLUDE_ONLY" ] || {
+	. /lib/functions.sh
+	. ../netifd-proto.sh
+	init_proto "$@"
+}
 
 # proto_mbim_setup() { echo "wwan[$$] mbim proto is missing"; }
 # proto_qmi_setup() { echo "wwan[$$] qmi proto is missing"; }
@@ -27,15 +24,15 @@ proto_ndis_init_config() {
     no_device=1
     
     proto_config_add_string apn
-    proto_config_add_string 'auth:or("none","chap","pap")'
+    proto_config_add_string auth
     proto_config_add_string username
     proto_config_add_string password
     proto_config_add_string pincode
-    proto_config_add_string 'pdpnum:or("none","1","2","8")'
-    proto_config_add_string 'pdptype:or("none","IPV4","IPV6","IPV4V6")'
+    proto_config_add_string pdpnum
+    proto_config_add_string pdptype
     proto_config_add_string delay
-    proto_config_add_string 'mode:or("none","LTE","WCDMA","GMS")'
-    proto_config_add_string 'simslot:or("1","2")'
+    proto_config_add_string mode
+    proto_config_add_string simslot
 }
 
 interface_dhcp_setup() {
@@ -54,7 +51,7 @@ interface_dhcp_setup() {
     return 0
 }
 
-proto_ndis_setup() {
+proto_ecm_setup() {
     local interface=$1
     local simnum model driver device ctl_device dat_device manufacturer
     local apn auth pdpnum pincode mode pdptype username password
@@ -70,7 +67,7 @@ proto_ndis_setup() {
     
     [ -n "$model" ] && [ -n "$ctl_device" ] || {
         echo "No control device specified"
-        proto_notify_error "$interface" NO_DEVICE
+        proto_notify_error "$interface" "NO_DEVICE"
         proto_set_available "$interface" 0
         return 1
     }
@@ -86,7 +83,7 @@ proto_ndis_setup() {
             break
         else
             if [ $timeout -gt 5 ];then
-                proto_notify_error "$interface" LOCK_AT_ERROR
+                proto_notify_error "$interface" "LOCK_AT_ERROR"
             fi
             timeout=$((timeout+1))
             sleep 1
@@ -99,15 +96,15 @@ proto_ndis_setup() {
         if [[ ${#pincode} -eq 4 && -z "${pincode//[0-9]/}" ]]; then
             __output=$(send_at "$ctl_device" "AT+CPIN=${pincode}")
             if [ $? -ne 0 ] && [ -z "$__output" ]; then
-                proto_notify_error "$interface" PINCODE_ERROR
+                proto_notify_error "$interface" "PINCODE_ERROR"
                 return 1
             fi
         fi
         elif [ "$__sim" = "SIM PUK" ]; then
-        proto_notify_error "$interface" SIM_PUK
+        proto_notify_error "$interface" "SIM_PUK"
         return 1
         elif [ "$__sim" = "ERROR" ]; then
-        proto_notify_error "$interface" SIM_ERROR
+        proto_notify_error "$interface" "SIM_ERROR"
         return 1
     fi
     
@@ -124,7 +121,7 @@ proto_ndis_setup() {
         fi
         
         if [ $timeout -gt 5 ];then
-            proto_notify_error "$interface" COPS_TIMEOUT
+            proto_notify_error "$interface" "COPS_TIMEOUT"
             return 1
         fi
         sleep 1
@@ -140,7 +137,7 @@ proto_ndis_setup() {
             if [ "${__pdpval}"X != "${pdptype}"X ];then
                 send_at "$ctl_device" "AT+CGDCONT=${pdpnum},\"${pdptype}\""
                 [ $? -eq 0 ] || {
-                    proto_notify_error "$interface" SET_PDPTYPE_ERROR
+                    proto_notify_error "$interface" "SET_PDPTYPE_ERROR"
                     return 1
                 }
             fi
@@ -158,7 +155,7 @@ proto_ndis_setup() {
         fi
         
         if [ $timeout -gt 120 ];then
-            proto_notify_error "$interface" NET_REG_TIMEOUT
+            proto_notify_error "$interface" "NET_REG_TIMEOUT"
             return 1
         fi
         sleep 1
@@ -187,7 +184,7 @@ proto_ndis_setup() {
     # __output=$(send_at "$ctl_device" "$__cmd")
     send_at "$ctl_device" "$__cmd"
     [ $? -eq 0 ] || {
-        proto_notify_error "$interface" NDISDUP_ERROR
+        proto_notify_error "$interface" "NDISDUP_ERROR"
         return 1
     }
     # [ $? -eq 0 -a -n "$__output" ] && uci_toggle_state network "$interface" "apn_val_${__sim_num}" "${apn_val}"
@@ -202,7 +199,7 @@ proto_ndis_setup() {
             [ "${__stat}"X = "1"X ] && return 0
         fi
         [ $timeout -gt 60 ] && {
-            proto_notify_error "$interface" GET_ADDR_TIMEOUT
+            proto_notify_error "$interface" "GET_ADDR_TIMEOUT"
             return 1
         }
         sleep 1
@@ -214,8 +211,9 @@ proto_ndis_setup() {
 }
 
 
-proto_ndis_teardown() {
+proto_ecm_teardown() {
     local interface=$1
+    local ctl_device
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     
     json_get_var pdpnum pdpnum
@@ -227,4 +225,6 @@ proto_ndis_teardown() {
     proto_send_update "$interface"
 }
 
-add_protocol ndis
+[ -n "$INCLUDE_ONLY" ] || {
+    add_protocol ecm
+}

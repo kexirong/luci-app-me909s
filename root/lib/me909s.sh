@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /lib/functions.sh
+. /lib/config/uci.sh
 
 lock_modem_at() {
     local __pid=$1
