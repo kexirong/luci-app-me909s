@@ -26,9 +26,9 @@ network.registerErrorCode('INITIALIZE_FAILED', _('Initialization failure'));
 network.registerErrorCode('SETMODE_FAILED',    _('Setting operation mode failed'));
 network.registerErrorCode('UNSUPPORTED_MODEM', _('Unsupported modem'));
 
-return network.registerProtocol('ncm', {
+return network.registerProtocol('ecm', {
 	getI18n: function() {
-		return _('NCM');
+		return _('ECM');
 	},
 
 	getIfname: function() {
@@ -36,7 +36,7 @@ return network.registerProtocol('ncm', {
 	},
 
 	getOpkgPackage: function() {
-		return 'comgt-ncm';
+		return null;
 	},
 
 	isFloating: function() {

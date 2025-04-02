@@ -30,25 +30,26 @@ end
 if  target_interface ~= nil then
     log_debug("开始收集数据：" .. target_interface)
    status_data = {
-        manufacturer = uci:get("network", target_interface, "manufacturer") or "N/A",
-        model = uci:get("network", target_interface, "model") or "N/A",
-        simslot = uci:get("network", target_interface, "simslot") or "N/A",
-        imei = uci:get("network", target_interface, "imei") or "N/A",
-        imsi = uci:get("network", target_interface, "imsi") or "N/A",
-        iccid = uci:get("network", target_interface, "iccid") or "N/A",
-        operator = uci:get("network", target_interface, "operator") or "N/A",
-        rxlev = uci:get("network", target_interface, "rxlev") or "N/A",
-        temp = uci:get("network", target_interface, "temp") or "N/A",
-        mode = uci:get("network", target_interface, "mode") or "N/A",
-        lac = uci:get("network", target_interface, "lac") or "N/A",
-        sim = uci:get("network", target_interface, "sim") or "N/A",
-        band = uci:get("network", target_interface, "band") or "N/A",
-        arfcn = uci:get("network", target_interface, "arfcn") or "N/A",
-        cellid = uci:get("network", target_interface, "cellid") or "N/A",
-        pci = uci:get("network", target_interface, "pci") or "N/A",
-        tac = uci:get("network", target_interface, "tac") or "N/A",
-        rsrp = uci:get("network", target_interface, "rsrp") or "N/A",
-        rsrq = uci:get("network", target_interface, "rsrq") or "N/A"
+        manufacturer = uci:get("network", target_interface, "manufacturer") or "-",
+        model = uci:get("network", target_interface, "model") or "-",
+        revision = uci:get("network", target_interface, "revision") or "-",
+        simslot = uci:get("network", target_interface, "simslot") or "-",
+        imei = uci:get("network", target_interface, "imei") or "-",
+        imsi = uci:get("network", target_interface, "imsi") or "-",
+        iccid = uci:get("network", target_interface, "iccid") or "-",
+        operator = uci:get("network", target_interface, "operator") or "-",
+        rxlev = uci:get("network", target_interface, "rxlev") or "-",
+        temp = uci:get("network", target_interface, "temp") or "-",
+        mode = uci:get("network", target_interface, "mode") or "-",
+        lac = uci:get("network", target_interface, "lac") or "-",
+        sim = uci:get("network", target_interface, "sim") or "-",
+        band = uci:get("network", target_interface, "band") or "-",
+        arfcn = uci:get("network", target_interface, "arfcn") or "-",
+        cellid = uci:get("network", target_interface, "cellid") or "-",
+        pci = uci:get("network", target_interface, "pci") or "-",
+        tac = uci:get("network", target_interface, "tac") or "-",
+        rsrp = uci:get("network", target_interface, "rsrp") or "-",
+        rsrq = uci:get("network", target_interface, "rsrq") or "-"
     }
 
 end
