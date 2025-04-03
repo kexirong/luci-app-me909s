@@ -10,7 +10,7 @@
 			"AT+CGDCONT=${profile},\\\"${pdptype}\\\"${apn:+,\\\"$apn\\\"}"
 		],
 		"modes": {
-			"preferlte": "AT^SYSCFGEX=\\\"030201\\\",3fffffff,2,4,7fffffffffffffff,,",
+			"preferlte": "AT^SYSCFGEX=\\\"030201\\\",40000000,2,4,40000000,,",
 			"preferumts": "AT^SYSCFGEX=\\\"0201\\\",3fffffff,2,4,7fffffffffffffff,,",
 			"lte": "AT^SYSCFGEX=\\\"03\\\",3fffffff,2,4,7fffffffffffffff,,",
 			"umts": "AT^SYSCFGEX=\\\"02\\\",3fffffff,2,4,7fffffffffffffff,,",

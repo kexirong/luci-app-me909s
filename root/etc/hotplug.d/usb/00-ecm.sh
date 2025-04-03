@@ -11,16 +11,6 @@ pid=$(cat /sys$DEVPATH/idProduct)
 usb="/lib/network/wwan/$vid:$pid"
 [ -f $usb ] || exit 0
 __FIND_ECM_IFACE=0
-iface=''
-for device in /sys/bus/usb/devices/*; do
-    [ -d "$device/net" ] && iface=$(ls "$device/net")
-    if [ -f "$device/idVendor" ] && [ -f "$device/idProduct" ]; then
-        vendor=$(cat "$device/idVendor")
-        product=$(cat "$device/idProduct")
-        conf="/lib/network/wwan/${vendor}:${product}"
-        [ -f "$conf" ] && { usb="$conf"; devicename="$device"; break; }
-    fi
-done
 
 modem_init() {
     local interface=$1
@@ -31,7 +21,7 @@ modem_init() {
     json_select
     json_get_vars desc type control atcom
     json_set_namespace $old_cb
-    
+    [ -n "$control"] && [ -n "$atcom" ] || exit 1
     ctl_device=/dev/ttyUSB$control
     dat_device=/dev/ttyUSB$atcom
     
@@ -47,41 +37,42 @@ modem_init() {
     modem_hw_info "$ctl_device" "$interface"
     
     if [ $? -eq 0 ];then
-        uci_toggle_state network "$interface" driver "ndis"
-        uci_toggle_state network "$interface" device "eth1"
-        uci_toggle_state network "$interface" ctl_device "$ctl_device"
-        uci_toggle_state network "$interface" dat_device "$dat_device"
+        
+        uci_set network "$interface" device "$ctl_device"
+        # uci_toggle_state network "$interface" driver "ndis"
+        # uci_toggle_state network "$interface" device "eth1"
+        uci_set_state network "$interface" ctl_device "$ctl_device"
+        uci_set_state network "$interface" dat_device "$dat_device"
     fi
 }
 
-find_ndis_iface() {
-    local cfg="$1"
+find_ecm_iface() {
+    local interface="$1"
     local proto
-    config_get proto "$cfg" proto
-    [ "$proto" = ndis ] || return 0
+    config_get proto "$interface" proto
+    [ "$proto" = "ecm" ] || return 0
     __FIND_NDIS_IFACE=1
-    #关闭接口
-    proto_set_available "$cfg" 0
+    #标记为不可用
+    proto_set_available "$interface" 0
     #初始化
-    modem_init $cfg
-    #打开接口
-    proto_set_available "$cfg" 1
-    ifup $cfg
+    modem_init $interface
+    #标记为可用并打开接口
+    proto_set_available "$interface" 1
+    ifup $interface
     exit 0
 }
 
 config_load network
-config_foreach find_ndis_iface interface
-
+config_foreach find_ecm_iface interface
+# set network.me909s.simslot='1'
 if [ $__FIND_ECM_IFACE -eq 0 ];then
     uci -q batch <<EOF
-delete network.wwan
-set network.wwan='interface'
-set network.wwan.auto='0'
-set network.wwan.pdpnum='2'
-set network.wwan.apn='Auto'
-set network.wwan.proto='ndis'
-set network.wwan.simslot='1'
+delete network.me909s
+set network.me909s='interface'
+set network.me909s.auto='0'
+set network.me909s.profile=2
+set network.me909s.apn='auto'
+set network.me909s.proto='ecm'
 EOF
     uci commit network
     config_load network

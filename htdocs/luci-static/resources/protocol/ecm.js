@@ -11,13 +11,16 @@ var callFileList = rpc.declare({
 	filter: function(list, params) {
 		var rv = [];
 		for (var i = 0; i < list.length; i++)
-			if (list[i].name.match(/^ttyUSB/) || list[i].name.match(/^cdc-wdm/))
+			if (list[i].name.match(/^ttyUSB/))
 				rv.push(params.path + list[i].name);
 		return rv.sort();
 	}
 });
 
-network.registerPatternVirtual(/^ncm-.+$/);
+network.registerPatternVirtual(/^ecm-.+$/);
+network.registerErrorCode('CALL_FAILED', _('Call failed'));
+network.registerErrorCode('NO_CID',      _('Unable to obtain client ID'));
+network.registerErrorCode('PLMN_FAILED', _('Setting PLMN failed'));
 network.registerErrorCode('CONFIGURE_FAILED',  _('Configuration failed'));
 network.registerErrorCode('DISCONNECT_FAILED', _('Disconnection attempt failed'));
 network.registerErrorCode('FINALIZE_FAILED',   _('Finalizing failed'));
@@ -83,15 +86,15 @@ return network.registerProtocol('ecm', {
 		o.value('IPV4V6', _('IPv4+IPv6'));
 		o.value('IPV6', _('IPv6'));
 
-		s.taboption('general', form.Value, 'apn', _('APN'));
+		o = s.taboption('general', form.Value, 'apn', _('APN'));
+		o.default = 'auto';
+		
 		s.taboption('general', form.Value, 'pincode', _('PIN'));
 		s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
 
 		o = s.taboption('general', form.Value, 'password', _('PAP/CHAP password'));
 		o.password = true;
 
-		o = s.taboption('general', form.Value, 'dialnumber', _('Dial number'));
-		o.placeholder = '*99***1#';
 
 		if (L.hasSystemFeature('ipv6')) {
 			o = s.taboption('advanced', form.ListValue, 'ipv6', _('Obtain IPv6-Address'));
