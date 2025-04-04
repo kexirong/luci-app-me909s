@@ -22,13 +22,12 @@ network.registerErrorCode('PIN_FAILED', _('Sim pin failed'));
 network.registerErrorCode('SIM_ERROR', _('Sim card status error'));
 network.registerErrorCode('SIM_PUK', _('Sim card need unlock by puk'));
 network.registerErrorCode('PDPTYPE_ERROR',      _('Set pdptype failed'));
-network.registerErrorCode('COPS_TIMEOUT', _('Get cops timeout'));
+network.registerErrorCode('GET_OPERATOR_ERROR', _('Get operator failed'));
 network.registerErrorCode('LOCK_AT_ERROR',  _('Lock at timeout'));
 network.registerErrorCode('DISCONNECT_FAILED', _('Disconnection attempt failed'));
 network.registerErrorCode('NDISDUP_ERROR',   _('Connection failed'));
 network.registerErrorCode('GET_ADDR_TIMEOUT',    _('Get ipaddr timeout'));
-network.registerErrorCode('NET_REG_TIMEOUT', _('Net reg timeout'));
-network.registerErrorCode('SETMODE_FAILED',    _('Setting operation mode failed'));
+network.registerErrorCode('NET_REG_ERROR', _('Net reg failed'));
 network.registerErrorCode('UNSUPPORTED_MODEM', _('Unsupported modem'));
 
 return network.registerProtocol('ecm', {
@@ -73,17 +72,18 @@ return network.registerProtocol('ecm', {
 			}, this));
 		};
 
-		o = s.taboption('general', form.Value, 'service', _('Service Type'));
-		o.value('', _('Modem default'));
-		o.value('preferlte', _('Prefer LTE'));
-		o.value('preferumts', _('Prefer UMTS'));
-		o.value('lte', 'LTE');
-		o.value('umts', 'UMTS/GPRS');
-		o.value('gsm', _('GPRS only'));
-		o.value('auto', _('auto'));
+		// o = s.taboption('general', form.Value, 'service', _('Service Type'));
+		// o.value('', _('Modem default'));
+		// o.value('preferlte', _('Prefer LTE'));
+		// o.value('preferumts', _('Prefer UMTS'));
+		// o.value('lte', 'LTE');
+		// o.value('umts', 'UMTS/GPRS');
+		// o.value('gsm', _('GPRS only'));
+		// o.value('auto', _('auto'));
+		s.taboption('general', form.Value, 'pincode', _('PIN'));
 
 		o = s.taboption('general', form.ListValue, 'pdptype', _('IP Protocol'));
-		o.default = 'IP';
+		o.default = 'IPV4V6';
 		o.value('IP', _('IPv4'));
 		o.value('IPV4V6', _('IPv4+IPv6'));
 		o.value('IPV6', _('IPv6'));
@@ -91,10 +91,22 @@ return network.registerProtocol('ecm', {
 		o = s.taboption('general', form.Value, 'apn', _('APN'));
 		o.default = 'auto';
 		
-		s.taboption('general', form.Value, 'pincode', _('PIN'));
-		s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
+		o = s.taboption('general', form.ListValue, 'auth', _('Authentication Type'));
+		o.value('3', 'PAP/CHAP');
+		o.value('1', 'PAP');
+		o.value('2', 'CHAP');
+		o.value('0', 'NONE');
+		o.default = 'none';
+
+		o = s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
+		o.depends('auth', '1');
+		o.depends('auth', '2');
+		o.depends('auth', '3');
 
 		o = s.taboption('general', form.Value, 'password', _('PAP/CHAP password'));
+		o.depends('auth', '1');
+		o.depends('auth', '2');
+		o.depends('auth', '3');
 		o.password = true;
 
 

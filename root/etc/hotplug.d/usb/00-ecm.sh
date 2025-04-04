@@ -13,7 +13,6 @@ usb="/lib/network/wwan/$vid:$pid"
 __FIND_ECM_IFACE=0
 
 modem_init() {
-    logger "init modem by $1"
     local interface=$1
     local old_cb control atcom device ctl_device dat_device
 
@@ -23,25 +22,19 @@ modem_init() {
     json_select
     json_get_vars desc type control atcom
     json_set_namespace $old_cb
-    logger "control: $control,atcom: $atcom"
     [ -n "$control" ] && [ -n "$atcom" ] || exit 1
     ctl_device=/dev/ttyUSB$control
     dat_device=/dev/ttyUSB$atcom
     
     timeout=0
-    logger "check $ctl_device exist"
     while [ ! -e "$ctl_device" ] ;do
-        logger "wait for $ctl_device $timeout"
         sleep 1
         timeout=$((timeout+1))
         if [ $timeout -gt 10 ];then
-            logger "wait for the modem at com ready timeout, exit!"
             exit 1
         fi
     done
-    logger "device $interface device"
     config_get device "$interface" device
-    logger "device: $device ;ctl_device: $ctl_device"
     [ -n $device ] && [ $device = $ctl_device ] || {
         uci_set network "$interface" device "$ctl_device"
         uci_commit network
@@ -70,7 +63,6 @@ find_ecm_iface() {
     #标记为可用并打开接口
     proto_set_available "$interface" 1
     ifup $interface
-    logger "ifup $interface $?"
     exit 0
 }
 
@@ -87,8 +79,9 @@ set network.me909s.apn='auto'
 set network.me909s.proto='ecm'
 set network.me909s.ipv6='auto'
 set network.me909s.pdptype='IPV4V6'
+add_list firewall.@zone[-1].network='me909s'
 EOF
-    uci commit network
+    uci commit
     config_load network
     config_foreach find_ecm_iface interface
 fi

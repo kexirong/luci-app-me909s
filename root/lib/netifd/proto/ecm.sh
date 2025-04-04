@@ -4,13 +4,11 @@
 [ -n "$INCLUDE_ONLY" ] || {
     . /lib/functions.sh
     . ../netifd-proto.sh
-    logger "ecm.sh init_proto $@"
     init_proto "$@"
 }
 
 
 proto_ecm_init_config() {
-    logger "proto_ecm_init_config"
     no_device=1
     available=1
     proto_config_add_string "device:device"
@@ -28,26 +26,23 @@ proto_ecm_init_config() {
 
 
 proto_ecm_setup() {
-
-    logger "proto_ecm_setup $@"
     local interface=$1
     
-    local ctl_device dat_device devname devpath ifname operator
+    local ctl_device dat_device devname devpath ifname operator pid
     
     local device apn auth username password pincode delay pdptype profile $PROTO_DEFAULT_OPTIONS
     
-    local __output __res __sim_state
+    local __output __res __sim_state __stat __cmd
     json_get_vars device apn auth username password pincode delay pdptype profile $PROTO_DEFAULT_OPTIONS
     
     [ "$metric" = "" ] && metric="0"
     
     [ -n "$profile" ] || profile=2
-
+    
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     dat_device=$(uci_get_state network "$interface" dat_device)
-    logger "proto_ecm_setup check device: $device"
     : ${device:=$ctl_device}
-
+    
     [ -n "$device" ] || {
         echo "No control device specified"
         proto_notify_error "$interface" NO_DEVICE
@@ -61,36 +56,27 @@ proto_ecm_setup() {
         proto_set_available "$interface" 0
         return 1
     }
-    logger "proto_ecm_setup check device end: $device"
     
     devname="$(basename "$device")"
     devpath="$(readlink -f /sys/class/tty/$devname/device)"
     ifname="$( ls "$devpath"/../../*/net )"
-
-    logger "proto_ecm_setup get ifname: $ifname"
-
+    
+    
     [ -n "$delay" ] && sleep "$delay"
     
-    local timeout=0
-    while true;do
-        lock_modem_at $$ "me909s"
-        if [  $? -eq 0 ];then
-            break
-        else
-            if [ $timeout -gt 5 ];then
-                proto_notify_error "$interface" "LOCK_AT_ERROR"
-                proto_set_available "$interface" 0
-                return 1
-            fi
-            timeout=$((timeout+1))
-            sleep 1
-            continue
-        fi
-    done
+    pid=$(pgrep -f "/lib/me909s.sh cellular")
+    [ -n pid ] && kill $pid
+    
+    lock_modem_at $$ "me909s"
+    [ $? -eq 0 ] || {
+        proto_notify_error "$interface" "LOCK_AT_ERROR"
+        return 1
+    }
     
     __sim_state="$(uci_get_state network "$interface" sim_state)"
-    logger "proto_ecm_setup check sim_state: $__sim_state"
     case "$__sim_state" in
+        "READY")
+        ;;
         "SIM PIN")
             __output=''
             if [[ ${#pincode} -eq 4 && -z "${pincode//[0-9]/}" ]]; then
@@ -98,46 +84,31 @@ proto_ecm_setup() {
             fi
             if [ $? -ne 0 ] && [ -z "$__output" ]; then
                 proto_notify_error "$interface" "PIN_FAILED"
-                proto_set_available "$interface" 0
+                proto_block_restart "$interface"
                 return 1
             fi
         ;;
-        "SIM PUK")
-            proto_notify_error "$interface" "SIM_PUK"
-            proto_set_available "$interface" 0
-            return 1
-        ;;
         "ERROR")
-            logger "proto_notify_error "$interface" SIM_ERROR"
-            proto_notify_error "$interface" SIM_ERROR
-            proto_set_available "$interface" 0
+            proto_notify_error "$interface" "SIM_ERROR"
+            proto_block_restart "$interface"
             return 1
         ;;
         *)
-            logger "proto_notify_error "$interface" UNKNOWN_SIM_STATUS"
-            proto_notify_error "$interface" UNKNOWN_SIM_STATUS
-            proto_set_available "$interface" 0
+            proto_notify_error "$interface" "${__sim_state/ /_}"
+            proto_block_restart "$interface"
             return 1
     esac
-    logger "proto_ecm_setup check sim_state end: $__sim_state"
-    local timeout=0
-    while [[ -z "$operator" || -n "${operator//[0-9]/}" ]];do
-        __output=$(send_at "$device" "AT+COPS?")
-        if [ $? -eq 0  ];then
-            __res=$(echo "$__output" | awk -F': ' '/\+COPS: / {print $2}')
-            operator=$(echo "$__res" |cut -d',' -f3 | tr -d '"')
-            if [ ${#operator} -eq 5 ];then
-                uci_toggle_state network $interface "operator" "$operator"
-            fi
-        fi
-        
-        if [ $timeout -gt 5 ];then
-            proto_notify_error "$interface" "COPS_TIMEOUT"
-            return 1
-        fi
-        sleep 1
-        timeout=$((timeout+1))
-    done
+    
+    __output=$(send_at "$device" "AT+COPS?")
+    [ $? -eq 0 ] && {
+        __res=$(echo "$__output" | awk -F': ' '/\+COPS: / {print $2}')
+        operator=$(echo "$__res" |cut -d',' -f3 | tr -d '"')
+    }
+    [ -n "$operator" ] && [ -z "${operator//[0-9]/}" ] && [ ${#operator} -eq 5 ] || {
+        proto_notify_error "$interface" "GET_OPERATOR_ERROR"
+        return 1
+    }
+    uci_toggle_state network $interface "operator" "$operator"
     
     if [ -n "${pdptype}" ];then
         __output=$(send_at "$device" "AT+CGDCONT?")
@@ -146,7 +117,7 @@ proto_ecm_setup() {
             __res=$(echo "$__output" | awk -F': ' -v pdp="$profile" '$0 ~ "\\+CGDCONT: " pdp {print $2}')
             __pdpval=$(echo "$__res" |cut -d',' -f2 | tr -d '"')
             if [ "${__pdpval}"X != "${pdptype}"X ];then
-                send_at "$device" "AT+CGDCONT=${profile},\"${pdptype}\""
+                send_at "$device" "AT+CGDCONT=${profile},\"${pdptype}\"" >/dev/null
                 [ $? -eq 0 ] || {
                     proto_notify_error "$interface" "PDPTYPE_ERROR"
                     return 1
@@ -154,25 +125,17 @@ proto_ecm_setup() {
             fi
         fi
     fi
+
+    __output=$(send_at "$device" "AT+CGREG?")
+    [ $? -eq 0 ] && {
+        __res=$(echo "$__output" | awk -F': ' '/\+CGREG: / {print $2}')
+        __stat=$(echo "$__res" |cut -d',' -f2)
+    }
+    [ "$__stat"X = "1"X ] || [ "$__stat"X = "5"X ] || {
+        proto_notify_error "$interface" "NET_REG_ERROR"
+        return 1
+    }
     
-    timeout=0
-    while true;do
-        __output=$(send_at "$device" "AT+CGREG?")
-        if [ $? -eq 0 ];then
-            __res=$(echo "$__output" | awk -F': ' '/\+CGREG: / {print $2}')
-            local __stat
-            __stat=$(echo "$__res" |cut -d',' -f2)
-            [ "$__stat"X = "1"X -o "$__stat"X = "5"X ] && break
-        fi
-        
-        if [ $timeout -gt 120 ];then
-            proto_notify_error "$interface" "NET_REG_TIMEOUT"
-            return 1
-        fi
-        sleep 1
-        timeout=$((timeout+1))
-    done
-    # [ -n "$pdptype" ] || pdptype="IPV4V6"
     local apn_val=""
     if [ -n "$apn" ];then
         [ "$apn" = "auto" ] || apn_val="$apn"
@@ -192,62 +155,58 @@ proto_ecm_setup() {
     else
         __cmd="AT^NDISDUP=${profile},1"
     fi
-    
-    send_at "$device" "$__cmd"
+    send_at "$device" "$__cmd" >/dev/null
     [ $? -eq 0 ] || {
         proto_notify_error "$interface" "NDISDUP_ERROR"
         return 1
     }
     
-    timeout=0
-    while true;do
-        __output=$(send_at "$ctl_device" "AT^NDISSTATQRY?")
-        if [ $? -eq 0 ];then
-            __res=$(echo "$__output" | awk -F': ' '/\^NDISSTATQRY: / {print $2}')
-            __stat=$(echo "$__res" |cut -d',' -f1)
-            [ "${__stat}"X = "1"X ] && return 0
-        fi
-        [ $timeout -gt 60 ] && {
-            proto_notify_error "$interface" "GET_ADDR_TIMEOUT"
-            return 1
-        }
-        sleep 1
-        timeout=$((timeout+1))
-    done
+    # logger "begin NDISSTATQRY"
+    # timeout=0
+    # while true;do
+    #     __output=$(send_at "$ctl_device" "AT^NDISSTATQRY?")
+    #     logger "__output: $__output"
+    #     if [ $? -eq 0 ];then
+    #         __res=$(echo "$__output" | awk -F': ' '/\^NDISSTATQRY: / {print $2}')
+    #         logger "__res: $__res"
+    #         __stat=$(echo "$__res" |cut -d',' -f1)
+    #         logger "__stat: $__stat"
+    #         [ "${__stat}"X = "1"X ] && return 0
+    #     fi
+    #     [ $timeout -gt 60 ] && {
+    #         proto_notify_error "$interface" "GET_ADDR_TIMEOUT"
+    #         return 1
+    #     }
+    #     sleep 1
+    #     timeout=$((timeout+1))
+    # done
+    # logger "end NDISSTATQRY"
+    
     unlock_modem_at "me909s"
-
+    
     echo "Setting up $ifname"
-	proto_init_update "$ifname" 1
-	proto_add_data
-	json_add_string "manufacturer" "$manufacturer"
-	proto_close_data
-	proto_send_update "$interface"
+    proto_init_update "$ifname" 1
+    proto_send_update "$interface"
     
     [ "$pdptype" = "IP" -o "$pdptype" = "IPV6" -o "$pdptype" = "IPV4V6" ] || pdptype="IP"
-    local zone="$(fw3 -q network "$interface" 2>/dev/null)"
+
     [ "$pdptype" = "IP" -o "$pdptype" = "IPV4V6" ] && {
         json_init
-        json_add_string name "${interface}_4"
+        json_add_string name wwan_4
         json_add_string ifname "@$interface"
         json_add_string proto "dhcp"
         proto_add_dynamic_defaults
-        [ -n "$zone" ] && {
-            json_add_string zone "$zone"
-        }
         json_close_object
         ubus call network add_dynamic "$(json_dump)"
     }
     
     [ "$pdptype" = "IPV6" -o "$pdptype" = "IPV4V6" ] && {
         json_init
-        json_add_string name "${interface}_6"
+        json_add_string name wwan_6
         json_add_string ifname "@$interface"
         json_add_string proto "dhcpv6"
         json_add_string extendprefix 1
         proto_add_dynamic_defaults
-        [ -n "$zone" ] && {
-            json_add_string zone "$zone"
-        }
         json_close_object
         ubus call network add_dynamic "$(json_dump)"
     }
@@ -257,27 +216,24 @@ proto_ecm_setup() {
 
 
 proto_ecm_teardown() {
-    logger "proto_ecm_teardown $@"
     local interface=$1
     
     local device profile
     
     json_get_vars device profile
-
+    
     [ -n "$device" ] || device=$(uci_get_state network "$interface" ctl_device)
     
     [ -n "$profile" ] || profile=2
-    [ -n "$device" ] && send_at "$device" "AT\^NDISDUP=${pdpnum},0" || {
+    [ -n "$device" ] && send_at "$device" "AT^NDISDUP=${profile},0" >/dev/null || {
         echo "Failed to disconnect"
         proto_notify_error "$interface" DISCONNECT_FAILED
         return 1
     }
-    
     proto_init_update "*" 0
     proto_send_update "$interface"
 }
 
 [ -n "$INCLUDE_ONLY" ] || {
-    logger "add_protocol ecm"
     add_protocol ecm
 }
