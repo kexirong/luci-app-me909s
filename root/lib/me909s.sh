@@ -67,7 +67,7 @@ mrd_imei() {
         send_at "$ctl_device" "AT*MRD_IMEI=W,$imei"
         if [ $? -ne 0 ];then
             send_at "$ctl_device" "AT*PROD=0"
-            exit 1
+            return 1
         fi
         send_at "$ctl_device" "AT*PROD=0"
         unlock_modem_at "me909s"
@@ -92,6 +92,7 @@ modem_hw_info() {
             continue
         }
         send_at "$ctl_device" "ATE1"
+        [ $? -eq 0 ] || sleep 1
         __output=$(send_at "$ctl_device" "ATI")
         if [ $? -eq 0 ];then
             local manufacturer model revision imei
@@ -99,32 +100,32 @@ modem_hw_info() {
             model=$(echo "$__output" | awk -F': ' '/^Model: / {print $2}' | tr -d '\r\n')
             revision=$(echo "$__output" | awk -F': ' '/^Revision: / {print $2}' | tr -d '\r\n')
             imei=$(echo "$__output" | awk -F': ' '/^IMEI: / {print $2}' | tr -d '\r\n')
-            uci_set_state network "$interface" manufacturer "$manufacturer"
-            uci_set_state network "$interface" model "$model"
-            uci_set_state network "$interface" revision "$revision"
-            uci_set_state network "$interface" imei "$imei"
+            uci_toggle_state network "$interface" manufacturer "$manufacturer"
+            uci_toggle_state network "$interface" model "$model"
+            uci_toggle_state network "$interface" revision "$revision"
+            uci_toggle_state network "$interface" imei "$imei"
         fi
         
         __output=$(send_at "$ctl_device" "AT+CPIN?")
         if [ $? -eq 0 ];then
             __res=$(echo "$__output" | awk -F': ' '/\+CPIN: / {print $2}' | tr -d '\r\n')
-            [ -n "$__res" ] && uci_set_state network "$interface" sim_state "${__res}"
-            [ "$__res" = "READY" ] || exit 1
+            [ -n "$__res" ] && uci_toggle_state network "$interface" sim_state "${__res}"
+            [ "$__res" = "READY" ] || return 1
         else
-            uci_set_state network "$interface" sim_state "ERROR"
-            exit 1
+            uci_toggle_state network "$interface" sim_state "ERROR"
+            return 1
         fi
         
         __output=$(send_at "$ctl_device" "AT+CIMI")
         if [ $? -eq 0 ];then
             __res=$(echo "$__output" | grep -oE '[0-9]+')
-            [ -n "$__res" ] && uci_set_state network "$interface" imsi "${__res}"
+            [ -n "$__res" ] && uci_toggle_state network "$interface" imsi "${__res}"
         fi
         
         __output=$(send_at "$ctl_device" "AT^ICCID?")
         if [ $? -eq 0 ];then
-            __res=$(echo "$__output" | grep -oE '[0-9]+')
-            [ -n "$__res" ] && uci_set_state network "$interface" iccid "${__res}"
+            __res=$(echo "$__output" | awk -F': ' '/\^ICCID?: / {print $2}' | tr -d '\r\n')
+            [ -n "$__res" ] && uci_toggle_state network "$interface" iccid "${__res}"
         fi
         break
     done
@@ -145,15 +146,15 @@ cellular(){
         __output=$(send_at "$ctl_device" "AT^CHIPTEMP?")
         if [ $? -eq 0 ];then
             __res=$(echo "$__output" | awk -F':' '/\^CHIPTEMP:/ {print $2}' | tr -d '\r\n')
-            [ -n "$__res" ] && uci_set_state network "$interface" temp "${__res}"
+            [ -n "$__res" ] && uci_toggle_state network "$interface" temp "${__res}"
         fi
         
         __output=$(send_at "$ctl_device" "AT+CPIN?")
         if [ $? -eq 0 ];then
             __res=$(echo "$__output" | awk -F': ' '/\+CPIN: / {print $2}'  | tr -d '\r\n')
-            [ -n "$__res" ] && uci_set_state network "$interface" sim_state "${__res}"
+            [ -n "$__res" ] && uci_toggle_state network "$interface" sim_state "${__res}"
         else
-            uci_set_state network "$interface" sim_state "ERROR"
+            uci_toggle_state network "$interface" sim_state "ERROR"
             sleep 5
             continue
         fi
@@ -162,7 +163,7 @@ cellular(){
         if [ $? -eq 0 ];then
             __res=$(echo "$__output" | awk -F':' '/\*BANDIND:/ {print $2}')
             __band=$(echo "$__res" |cut -d',' -f2 | tr -d ' ')
-            [ -n "$__band" ] && uci_set_state network "$interface" band "${__band}"
+            [ -n "$__band" ] && uci_toggle_state network "$interface" band "${__band}"
         fi
         
         __output=$(send_at "$ctl_device" "AT^MONSC")
@@ -208,16 +209,16 @@ cellular(){
                     __rxlev=$(echo "$__res" |cut -d',' -f10)
                 ;;
             esac
-            [ -n "$__sys_mode" ] && uci_set_state network "$interface" "mode" "${__sys_mode}"
-            [ -n "$__arfcn" ] && uci_set_state network "$interface" arfcn "${__arfcn}"
-            [ -n "$__cellid" ] && uci_set_state network "$interface" cellid "${__cellid}"
-            [ -n "$__pci" ] && uci_set_state network "$interface" pci "${__pci}"
-            [ -n "$__lac" ] && uci_set_state network "$interface" lac "${__lac}"
-            [ -n "$__tac" ] && uci_set_state network "$interface" tac "${__tac}"
-            [ -n "$__rsrp" ] && uci_set_state network "$interface" rsrp "${__rsrp}"
-            [ -n "$__rsrq" ] && uci_set_state network "$interface" rsrq "${__rsrq}"
-            [ -n "$__rxlev" ] && uci_set_state network "$interface" rxlev "${__rxlev}"
-            [ -n "$__band" ] && uci_set_state network "$interface" band "${__band}"
+            [ -n "$__sys_mode" ] && uci_toggle_state network "$interface" "mode" "${__sys_mode}"
+            [ -n "$__arfcn" ] && uci_toggle_state network "$interface" arfcn "${__arfcn}"
+            [ -n "$__cellid" ] && uci_toggle_state network "$interface" cellid "${__cellid}"
+            [ -n "$__pci" ] && uci_toggle_state network "$interface" pci "${__pci}"
+            [ -n "$__lac" ] && uci_toggle_state network "$interface" lac "${__lac}"
+            [ -n "$__tac" ] && uci_toggle_state network "$interface" tac "${__tac}"
+            [ -n "$__rsrp" ] && uci_toggle_state network "$interface" rsrp "${__rsrp}"
+            [ -n "$__rsrq" ] && uci_toggle_state network "$interface" rsrq "${__rsrq}"
+            [ -n "$__rxlev" ] && uci_toggle_state network "$interface" rxlev "${__rxlev}"
+            [ -n "$__band" ] && uci_toggle_state network "$interface" band "${__band}"
         fi
         unlock_modem_at "me909s"
         sleep 5
@@ -226,12 +227,14 @@ cellular(){
 
 __CMD=$1
 # [ -z "$_CMD" ] || exit 0
-shift
+
 case "$__CMD" in
     "cellular")
+        shift
         cellular $@
     ;;
     "mrd_imei")
+        shift
         mrd_imei $@
     ;;
     

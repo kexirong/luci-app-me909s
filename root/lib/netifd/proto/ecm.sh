@@ -4,11 +4,13 @@
 [ -n "$INCLUDE_ONLY" ] || {
     . /lib/functions.sh
     . ../netifd-proto.sh
+    logger "ecm.sh init_proto $@"
     init_proto "$@"
 }
 
 
 proto_ecm_init_config() {
+    logger "proto_ecm_init_config"
     no_device=1
     available=1
     proto_config_add_string "device:device"
@@ -26,6 +28,8 @@ proto_ecm_init_config() {
 
 
 proto_ecm_setup() {
+
+    logger "proto_ecm_setup $@"
     local interface=$1
     
     local ctl_device dat_device devname devpath ifname operator
@@ -38,15 +42,12 @@ proto_ecm_setup() {
     [ "$metric" = "" ] && metric="0"
     
     [ -n "$profile" ] || profile=2
-    # simnum="$(uci -q get network.$interface.simslot)"
-    # model=$(uci_get_state network "$interface" model)
-    # driver=$(uci_get_state network "$interface" driver)
-    # device=$(uci_get_state network "$interface" device)
+
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     dat_device=$(uci_get_state network "$interface" dat_device)
-    # manufacturer=$(uci_get_state network "$interface" manufacturer)
-    
+    logger "proto_ecm_setup check device: $device"
     : ${device:=$ctl_device}
+
     [ -n "$device" ] || {
         echo "No control device specified"
         proto_notify_error "$interface" NO_DEVICE
@@ -56,14 +57,18 @@ proto_ecm_setup() {
     
     [ -e "$device" ] || {
         echo "Control device not valid"
+        proto_notify_error "$interface" NO_DEVICE
         proto_set_available "$interface" 0
         return 1
     }
+    logger "proto_ecm_setup check device end: $device"
     
     devname="$(basename "$device")"
     devpath="$(readlink -f /sys/class/tty/$devname/device)"
     ifname="$( ls "$devpath"/../../*/net )"
-    
+
+    logger "proto_ecm_setup get ifname: $ifname"
+
     [ -n "$delay" ] && sleep "$delay"
     
     local timeout=0
@@ -74,6 +79,8 @@ proto_ecm_setup() {
         else
             if [ $timeout -gt 5 ];then
                 proto_notify_error "$interface" "LOCK_AT_ERROR"
+                proto_set_available "$interface" 0
+                return 1
             fi
             timeout=$((timeout+1))
             sleep 1
@@ -81,8 +88,8 @@ proto_ecm_setup() {
         fi
     done
     
-    __sim_state="$(uci_get_state network "$interface" sim)"
-    
+    __sim_state="$(uci_get_state network "$interface" sim_state)"
+    logger "proto_ecm_setup check sim_state: $__sim_state"
     case "$__sim_state" in
         "SIM PIN")
             __output=''
@@ -91,22 +98,28 @@ proto_ecm_setup() {
             fi
             if [ $? -ne 0 ] && [ -z "$__output" ]; then
                 proto_notify_error "$interface" "PIN_FAILED"
+                proto_set_available "$interface" 0
                 return 1
             fi
         ;;
         "SIM PUK")
             proto_notify_error "$interface" "SIM_PUK"
+            proto_set_available "$interface" 0
             return 1
         ;;
         "ERROR")
-            proto_notify_error "$interface" "SIM_ERROR"
+            logger "proto_notify_error "$interface" SIM_ERROR"
+            proto_notify_error "$interface" SIM_ERROR
+            proto_set_available "$interface" 0
             return 1
         ;;
         *)
-            proto_notify_error "$interface" "UNKNOWN_SIM_STATUS"
+            logger "proto_notify_error "$interface" UNKNOWN_SIM_STATUS"
+            proto_notify_error "$interface" UNKNOWN_SIM_STATUS
+            proto_set_available "$interface" 0
             return 1
     esac
-    
+    logger "proto_ecm_setup check sim_state end: $__sim_state"
     local timeout=0
     while [[ -z "$operator" || -n "${operator//[0-9]/}" ]];do
         __output=$(send_at "$device" "AT+COPS?")
@@ -135,7 +148,7 @@ proto_ecm_setup() {
             if [ "${__pdpval}"X != "${pdptype}"X ];then
                 send_at "$device" "AT+CGDCONT=${profile},\"${pdptype}\""
                 [ $? -eq 0 ] || {
-                    proto_notify_error "$interface" "SET_PDPTYPE_ERROR"
+                    proto_notify_error "$interface" "PDPTYPE_ERROR"
                     return 1
                 }
             fi
@@ -244,6 +257,7 @@ proto_ecm_setup() {
 
 
 proto_ecm_teardown() {
+    logger "proto_ecm_teardown $@"
     local interface=$1
     
     local device profile
@@ -253,7 +267,7 @@ proto_ecm_teardown() {
     [ -n "$device" ] || device=$(uci_get_state network "$interface" ctl_device)
     
     [ -n "$profile" ] || profile=2
-    [ -n "$device" ] &&  send_at "$device" "AT\^NDISDUP=${pdpnum},0" || {
+    [ -n "$device" ] && send_at "$device" "AT\^NDISDUP=${pdpnum},0" || {
         echo "Failed to disconnect"
         proto_notify_error "$interface" DISCONNECT_FAILED
         return 1
@@ -264,5 +278,6 @@ proto_ecm_teardown() {
 }
 
 [ -n "$INCLUDE_ONLY" ] || {
+    logger "add_protocol ecm"
     add_protocol ecm
 }

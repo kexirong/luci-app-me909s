@@ -18,14 +18,16 @@ var callFileList = rpc.declare({
 });
 
 network.registerPatternVirtual(/^ecm-.+$/);
-network.registerErrorCode('CALL_FAILED', _('Call failed'));
-network.registerErrorCode('NO_CID',      _('Unable to obtain client ID'));
-network.registerErrorCode('PLMN_FAILED', _('Setting PLMN failed'));
-network.registerErrorCode('CONFIGURE_FAILED',  _('Configuration failed'));
+network.registerErrorCode('PIN_FAILED', _('Sim pin failed'));
+network.registerErrorCode('SIM_ERROR', _('Sim card status error'));
+network.registerErrorCode('SIM_PUK', _('Sim card need unlock by puk'));
+network.registerErrorCode('PDPTYPE_ERROR',      _('Set pdptype failed'));
+network.registerErrorCode('COPS_TIMEOUT', _('Get cops timeout'));
+network.registerErrorCode('LOCK_AT_ERROR',  _('Lock at timeout'));
 network.registerErrorCode('DISCONNECT_FAILED', _('Disconnection attempt failed'));
-network.registerErrorCode('FINALIZE_FAILED',   _('Finalizing failed'));
-network.registerErrorCode('GETINFO_FAILED',    _('Modem information query failed'));
-network.registerErrorCode('INITIALIZE_FAILED', _('Initialization failure'));
+network.registerErrorCode('NDISDUP_ERROR',   _('Connection failed'));
+network.registerErrorCode('GET_ADDR_TIMEOUT',    _('Get ipaddr timeout'));
+network.registerErrorCode('NET_REG_TIMEOUT', _('Net reg timeout'));
 network.registerErrorCode('SETMODE_FAILED',    _('Setting operation mode failed'));
 network.registerErrorCode('UNSUPPORTED_MODEM', _('Unsupported modem'));
 

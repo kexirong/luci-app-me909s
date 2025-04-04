@@ -13,20 +13,25 @@ usb="/lib/network/wwan/$vid:$pid"
 __FIND_ECM_IFACE=0
 
 modem_init() {
+    logger "init modem by $1"
     local interface=$1
-    local old_cb control data
+    local old_cb control atcom device ctl_device dat_device
+
     json_set_namespace ecm old_cb
     json_init
     json_load "$(cat $usb)"
     json_select
     json_get_vars desc type control atcom
     json_set_namespace $old_cb
-    [ -n "$control"] && [ -n "$atcom" ] || exit 1
+    logger "control: $control,atcom: $atcom"
+    [ -n "$control" ] && [ -n "$atcom" ] || exit 1
     ctl_device=/dev/ttyUSB$control
     dat_device=/dev/ttyUSB$atcom
     
     timeout=0
+    logger "check $ctl_device exist"
     while [ ! -e "$ctl_device" ] ;do
+        logger "wait for $ctl_device $timeout"
         sleep 1
         timeout=$((timeout+1))
         if [ $timeout -gt 10 ];then
@@ -34,15 +39,21 @@ modem_init() {
             exit 1
         fi
     done
+    logger "device $interface device"
+    config_get device "$interface" device
+    logger "device: $device ;ctl_device: $ctl_device"
+    [ -n $device ] && [ $device = $ctl_device ] || {
+        uci_set network "$interface" device "$ctl_device"
+        uci_commit network
+    }
+    
     modem_hw_info "$ctl_device" "$interface"
     
     if [ $? -eq 0 ];then
-        
-        uci_set network "$interface" device "$ctl_device"
         # uci_toggle_state network "$interface" driver "ndis"
         # uci_toggle_state network "$interface" device "eth1"
-        uci_set_state network "$interface" ctl_device "$ctl_device"
-        uci_set_state network "$interface" dat_device "$dat_device"
+        uci_toggle_state network "$interface" ctl_device "$ctl_device"
+        uci_toggle_state network "$interface" dat_device "$dat_device"
     fi
 }
 
@@ -59,6 +70,7 @@ find_ecm_iface() {
     #标记为可用并打开接口
     proto_set_available "$interface" 1
     ifup $interface
+    logger "ifup $interface $?"
     exit 0
 }
 
@@ -73,9 +85,11 @@ set network.me909s.auto='0'
 set network.me909s.profile=2
 set network.me909s.apn='auto'
 set network.me909s.proto='ecm'
+set network.me909s.ipv6='auto'
+set network.me909s.pdptype='IPV4V6'
 EOF
     uci commit network
     config_load network
-    config_foreach find_ndis_iface interface
+    config_foreach find_ecm_iface interface
 fi
 

@@ -1,5 +1,4 @@
 local uci = require "uci".cursor(nil, "/var/state")
-local fs = require "nixio.fs"
 local sys = require "luci.sys"
 
 m = Map("ME909s", translate("鼎桥ME909S"))
@@ -22,11 +21,7 @@ uci:foreach("network", "interface", function(section)
     end
 end)
 local status_data
-function table_size(t)
-    local count = 0
-    for _ in pairs(t) do count = count + 1 end
-    return count
-end
+
 if  target_interface ~= nil then
     log_debug("开始收集数据：" .. target_interface)
    status_data = {
@@ -42,7 +37,7 @@ if  target_interface ~= nil then
         temp = uci:get("network", target_interface, "temp") or "-",
         mode = uci:get("network", target_interface, "mode") or "-",
         lac = uci:get("network", target_interface, "lac") or "-",
-        sim = uci:get("network", target_interface, "sim") or "-",
+        sim_state = uci:get("network", target_interface, "sim_state") or "-",
         band = uci:get("network", target_interface, "band") or "-",
         arfcn = uci:get("network", target_interface, "arfcn") or "-",
         cellid = uci:get("network", target_interface, "cellid") or "-",
@@ -53,9 +48,6 @@ if  target_interface ~= nil then
     }
 
 end
-log_debug("收集数据完成，字段数量：" .. tostring(table_size(status_data)))
-for k, v in pairs(status_data) do
-    log_debug(string.format("%s = %s", k, v))
-end
+
 s.status_data = status_data or {}
 return m
