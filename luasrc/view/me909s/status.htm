@@ -1,39 +1,43 @@
-<fieldset class="cbi-section">
+<div class="cbi-section fade-in">
     <% if not next(self.status_data) then %>
-    <legend class="error"><%:未检测到ME909S模块%></legend>
+    <h3 class="error"><%:未检测到ME909S模块%></h3>
     <% else %>
-    <legend><%:status%></legend>
-
+    <h3><%:Status%></h3>
     <div class="table">
         <div class="tr">
-            <div class="td"><%:manufacturer%></div><div class="td"><%= self.status_data.manufacturer %></div>
-            <div class="td"><%:model%></div><div class="td"><%= self.status_data.model %></div>
-            <div class="td"><%:revision%></div><div class="td"><%= self.status_data.revision %></div>
+            <div class="td left" width="33%"><%:manufacturer%></div><div class="td left" width="33%"><%= self.status_data.manufacturer %></div>
+            <div class="td left" width="33%"><%:model%></div><div class="td left" width="33%"><%= self.status_data.model %></div>
         </div>
         <div class="tr">
-            <div class="td"><%:imei%></div><div class="td"><%= self.status_data.imei %></div>
-            <div class="td"><%:iccid%></div><div class="td"><%= self.status_data.iccid %></div>
-            <div class="td"><%:imsi%></div><div class="td"><%= self.status_data.imsi %></div>
+            <div class="td left" width="33%"><%:revision%></div><div class="td left" width="33%"><%= self.status_data.revision %></div>
+            <div class="td left" width="33%"><%:imei%></div><div class="td left" width="33%"><%= self.status_data.imei %></div>
         </div>
         <div class="tr">
-            <div class="td"><%= (self.status_data.simslot == "2") and "eSIM" or "SIM" %></div><div class="td"><%= self.status_data.sim_state %></div>
-            <div class="td"><%:operator%></div><div class="td"><%= self.status_data.operator %></div>
-            <div class="td"><%:mode%></div><div class="td"><%= self.status_data.mode %></div>
+            <div class="td left" width="33%"><%:iccid%></div><div class="td left" width="33%"><%= self.status_data.iccid %></div>
+            <div class="td left" width="33%"><%:imsi%></div><div class="td left" width="33%"><%= self.status_data.imsi %></div>
         </div>
         <div class="tr">
-            <div class="td"><%:band%></div><div class="td"><%= self.status_data.band %></div>
-            <div class="td"><%:pci%></div><div class="td"><%= self.status_data.pci %></div>
-            <div class="td"><%:arfcn%></div><div class="td"><%= self.status_data.arfcn %></div>
+            <div class="td left" width="33%"><%= (self.status_data.simslot == "2") and "eSIM" or "SIM" %></div><div class="td left" width="33%"><%= self.status_data.sim_state %></div>
+            <div class="td left" width="33%"><%:operator%></div><div class="td left" width="33%"><%= self.status_data.operator %></div>
         </div>
         <div class="tr">
-            <div class="td"><%:rxlev%></div><div class="td"><%= self.status_data.rxlev %></div>
-            <div class="td"><%:rsrp%></div><div class="td"><%= self.status_data.rsrp %></div>
-            <div class="td"><%:rsrq%></div><div class="td"><%= self.status_data.rsrq %></div>
-            <div class="td"><%:tac%></div><div class="td"><%= self.status_data.tac %></div>
+            <div class="td left" width="33%"><%:mode%></div><div class="td left" width="33%"><%= self.status_data.mode %></div>
+            <div class="td left" width="33%"><%:band%></div><div class="td left" width="33%"><%= self.status_data.band %></div>
         </div>
-    
+        <div class="tr">
+            <div class="td left" width="33%"><%:pci%></div><div class="td left" width="33%"><%= self.status_data.pci %></div>
+            <div class="td left" width="33%"><%:arfcn%></div><div class="td left" width="33%"><%= self.status_data.arfcn %></div>
+        </div>
+        <div class="tr">
+            <div class="td left" width="33%"><%:rxlev%></div><div class="td left" width="33%"><%= self.status_data.rxlev %></div>
+            <div class="td left" width="33%"><%:rsrp%></div><div class="td left" width="33%"><%= self.status_data.rsrp %></div>
+        </div>
+        <div class="tr">
+            <div class="td left" width="33%"><%:rsrq%></div><div class="td left" width="33%"><%= self.status_data.rsrq %></div>
+            <div class="td left" width="33%"><%:tac%></div><div class="td left" width="33%"><%= self.status_data.tac %></div>
+        </div>
 	</div>
     <% end %>
-</fieldset>
+</div>
  
  

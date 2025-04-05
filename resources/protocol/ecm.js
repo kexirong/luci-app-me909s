@@ -96,7 +96,7 @@ return network.registerProtocol('ecm', {
 		o.value('1', 'PAP');
 		o.value('2', 'CHAP');
 		o.value('0', 'NONE');
-		o.default = 'none';
+		o.default = '0';
 
 		o = s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
 		o.depends('auth', '1');

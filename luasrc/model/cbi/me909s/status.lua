@@ -1,29 +1,22 @@
 local uci = require "uci".cursor(nil, "/var/state")
-local sys = require "luci.sys"
 
-m = Map("ME909s", translate("鼎桥ME909S"))
+m = Map("status")
 
-s = m:section(SimpleSection, nil, translate("模块状态"))
+s = m:section(SimpleSection)
 s.template = "me909s/status"
-local function log_debug(msg)
-    sys.exec("logger -t ME909s-DEBUG '" .. msg .. "'")
-end
+
 local target_interface
 
 uci:foreach("network", "interface", function(section)
     local model = uci:get("network", section[".name"], "model")
-    log_debug("开始搜索 ME909s 接口配置" .. section[".name"])
     if model ~= nil then
-        log_debug(section[".name"] .. "接口配置model" .. model)
         target_interface = section[".name"]
-        log_debug("找到接口：" .. target_interface)
         return false
     end
 end)
 local status_data
 
 if  target_interface ~= nil then
-    log_debug("开始收集数据：" .. target_interface)
    status_data = {
         manufacturer = uci:get("network", target_interface, "manufacturer") or "-",
         model = uci:get("network", target_interface, "model") or "-",
@@ -46,7 +39,6 @@ if  target_interface ~= nil then
         rsrp = uci:get("network", target_interface, "rsrp") or "-",
         rsrq = uci:get("network", target_interface, "rsrq") or "-"
     }
-
 end
 
 s.status_data = status_data or {}
