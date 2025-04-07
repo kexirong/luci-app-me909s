@@ -57,9 +57,10 @@ function ss.parse(self, section, novld)
     sys.exec("logger -t ME909s advance ss.parse  DEBUG " .. TableToStr(luci.http.formvalue() or {}))
     local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
     if cur_imei and new_imei ~= cur_imei then
-        sys.exec("logger -t ME909s advance ss.parse DEBUG " .. new_imei) 
+        sys.exec("logger -t ME909s advance ss.parse DEBUG " .. new_imei)
     end
-    sys.exec("logger -t ME909s advance ss.parse DEBUG " .. (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
+    sys.exec("logger -t ME909s advance ss.parse DEBUG " ..
+                 (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
 end
 
 imei = ss:option(Value, "imei", translate("IMEI"))
@@ -76,7 +77,24 @@ local set_imei_btn = ss:option(Button, "set_imei", translate("设置IMEI"))
 set_imei_btn.inputtitle = translate("确定")
 set_imei_btn.inputstyle = "apply"
 
-local hex_to_bits = {["0"]="0000",["1"]="0001",["2"]="0010",["3"]="0011",["4"]="0100", ["5"]="0101",["6"]="0110",["7"]="0111",["8"]="1000",["9"]="1001",["a"]="1010",["b"]="1011",["c"]="1100",["d"]="1101",["e"]="1110",["f"]="1111"}
+local hex_to_bits = {
+    ["0"] = "0000",
+    ["1"] = "0001",
+    ["2"] = "0010",
+    ["3"] = "0011",
+    ["4"] = "0100",
+    ["5"] = "0101",
+    ["6"] = "0110",
+    ["7"] = "0111",
+    ["8"] = "1000",
+    ["9"] = "1001",
+    ["a"] = "1010",
+    ["b"] = "1011",
+    ["c"] = "1100",
+    ["d"] = "1101",
+    ["e"] = "1110",
+    ["f"] = "1111"
+}
 
 local bits_to_hex = {}
 for k, v in pairs(hex_to_bits) do
@@ -85,10 +103,10 @@ end
 
 local function hex_bitwise_op(a, b, op)
     local max_len = math.max(#a, #b)
-    -- 补零到左侧使长度相同，并转为小写
+    -- pad with leading zeros
     a = string.rep("0", max_len - #a) .. a:lower()
     b = string.rep("0", max_len - #b) .. b:lower()
-    
+
     local result = {}
     for i = 1, max_len do
         local c_a = a:sub(i, i)
@@ -118,7 +136,7 @@ local function hex_bitwise_op(a, b, op)
         end
         table.insert(result, hex_char)
     end
-    -- 合并结果并去除前导零
+    -- remove leading zeros
     local result_str = table.concat(result)
     result_str = result_str:gsub("^0+", "")
     if result_str == "" then
@@ -148,31 +166,31 @@ mode:value("01", translate("GSM"))
 mode:value("00", translate("AUTO"))
 
 local gms_umts_bands = {
-    { key = "GSM_DCS_1800", hex = "80" },
-    { key = "GSM_EGSM_900", hex = "100" },
-    { key = "GSM_PGSM_900", hex = "200" },
-    { key = "Band_1", hex = "400000" },
-    { key = "Band_8", hex = "2000000000000"}
+    ["80"] = "GSM DCS 1800",
+    ["100"] = "EGSM 900",
+    ["200"] = "PGSM 900",
+    ["400000"] = "Band 1",
+    ["2000000000000"] = "Band 8"
 }
 local gms_umts_band = ss:option(MultiValue, "gms_umts_band", translate("GMS/UMTS频段"))
-for _, band in ipairs(gms_umts_bands) do
-    gms_umts_band:value(band.key, band.hex) 
+for v, k in pairs(gms_umts_bands) do
+    gms_umts_band:value(k, v)
 end
 
 local lte_bands = {
-    { key = "FDD1", hex = "1" },
-    { key = "FDD3", hex = "4" },
-    { key = "FDD5", hex = "10" },
-    { key = "FDD8", hex = "80" },
-    { key = "TDD34", hex = "200000000" },
-    { key = "TDD38", hex = "2000000000" },
-    { key = "TDD39", hex = "4000000000" },
-    { key = "TDD40", hex = "8000000000" },
-    { key = "TDD41", hex = "10000000000" }
+    ["1"] = "FDD1",
+    ["4"] = "FDD3",
+    ["10"] = "FDD5",
+    ["80"] = "FDD8",
+    ["200000000"] = "TDD34",
+    ["2000000000"] = "TDD38",
+    ["4000000000"] = "TDD39",
+    ["8000000000"] = "TDD40",
+    ["10000000000"] = "TDD41"
 }
 local let_band = ss:option(MultiValue, "let_band", translate("LET频段"))
-for _, band in ipairs(lte_bands) do
-    let_band:value(band.key, band.hex) 
+for v, k in pairs(lte_bands) do
+    let_band:value(k, v)
 end
 
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))

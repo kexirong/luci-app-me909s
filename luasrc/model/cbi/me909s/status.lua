@@ -1,4 +1,4 @@
-local uci = require "uci".cursor(nil, "/var/state")
+local uci = require"uci".cursor(nil, "/var/state")
 local sys = require "luci.sys"
 
 m = Map("me909s")
@@ -17,12 +17,12 @@ uci:foreach("network", "interface", function(section)
 end)
 local status_data
 
-if  target_interface ~= nil then
-   status_data = {
+if target_interface ~= nil then
+    status_data = {
         manufacturer = uci:get("network", target_interface, "manufacturer") or "-",
         model = uci:get("network", target_interface, "model") or "-",
         revision = uci:get("network", target_interface, "revision") or "-",
-        simslot = string.gsub(sim_val or "1", "%s+", "") ,
+        simslot = string.gsub(sim_val or "1", "%s+", ""),
         imei = uci:get("network", target_interface, "imei") or "-",
         imsi = uci:get("network", target_interface, "imsi") or "-",
         iccid = uci:get("network", target_interface, "iccid") or "-",
