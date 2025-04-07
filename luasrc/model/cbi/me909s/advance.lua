@@ -175,7 +175,6 @@ local gms_umts_bands = {
     ["2000000000000"] = "Band 8"
 }
 local gms_umts_band = ss:option(MultiValue, "gms_umts_band", translate("GMS/UMTS频段"))
-ss.template = "me909s/cmvalue"
 for v, k in pairs(gms_umts_bands) do
     gms_umts_band:value(v, k)
 end
