@@ -1,5 +1,6 @@
 local uci = require"uci".cursor(nil, "/var/state")
 local sys = require "luci.sys"
+
 function ToStringEx(value)
     if type(value) == 'table' then
         return TableToStr(value)
@@ -52,6 +53,7 @@ if target_interface then
 end
 
 m = Map("me909s")
+m:append(Template("me909s/css"))
 ss = m:section(SimpleSection, "IMEI", "修改IMEI模块会重启")
 function ss.parse(self, section, novld)
     sys.exec("logger -t ME909s advance ss.parse  DEBUG " .. TableToStr(luci.http.formvalue() or {}))
@@ -157,7 +159,7 @@ ss = m:section(SimpleSection, "BAND", "设置BAND模块会重启")
 function ss.parse(self, section, novld)
 end
 
-local mode = ts:option(ListValue, "mode", translate("网络模式"))
+local mode = ss:option(ListValue, "mode", translate("网络模式"))
 mode:value("030201", translate("preferLTE"))
 mode:value("0201", translate("preferUMTS"))
 mode:value("03", translate("LTE"))
@@ -173,8 +175,9 @@ local gms_umts_bands = {
     ["2000000000000"] = "Band 8"
 }
 local gms_umts_band = ss:option(MultiValue, "gms_umts_band", translate("GMS/UMTS频段"))
+ss.template = "me909s/cmvalue"
 for v, k in pairs(gms_umts_bands) do
-    gms_umts_band:value(k, v)
+    gms_umts_band:value(v, k)
 end
 
 local lte_bands = {
@@ -190,7 +193,7 @@ local lte_bands = {
 }
 local let_band = ss:option(MultiValue, "let_band", translate("LET频段"))
 for v, k in pairs(lte_bands) do
-    let_band:value(k, v)
+    let_band:value(v, k)
 end
 
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))

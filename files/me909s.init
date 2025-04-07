@@ -1,6 +1,6 @@
 #!/bin/sh /etc/rc.common
 
-START=11
+START=00
 
 SIM_GPIO_PATH="/sys/class/gpio/sim_select/value"
 USB_GPIO_PATH="/sys/class/gpio/usb_power/value"

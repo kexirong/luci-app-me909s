@@ -75,6 +75,7 @@ set network.me909s.profile=2
 set network.me909s.apn='auto'
 set network.me909s.proto='ecm'
 set network.me909s.ipv6='auto'
+set network.me909s.delay='10'
 set network.me909s.pdptype='IPV4V6'
 add_list firewall.@zone[-1].network='me909s'
 EOF
