@@ -9,8 +9,8 @@ s.template = "me909s/status"
 local target_interface
 local sim_val = sys.exec("cat /sys/class/gpio/sim_select/value 2>/dev/null")
 uci:foreach("network", "interface", function(section)
-    local model = uci:get("network", section[".name"], "model")
-    if model ~= nil then
+    local ctl_device = uci:get("network", section[".name"], "ctl_device")
+    if ctl_device ~= nil then
         target_interface = section[".name"]
         return false
     end
