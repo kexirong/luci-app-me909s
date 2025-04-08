@@ -57,9 +57,6 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usb
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/ecm.usb $(1)/etc/hotplug.d/usb/00-ecm.sh
 
-	$(INSTALL_DIR) $(1)/lib/network/wwan
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/data/* $(1)/lib/network/wwan/
-
 	$(INSTALL_DIR) $(1)/lib
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/files/me909s.sh $(1)/lib/
 	$(INSTALL_DIR) $(1)/usr/bin
@@ -67,6 +64,16 @@ define Package/$(PKG_NAME)/install
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/me909s.init $(1)/etc/init.d/me909s
+
+	$(INSTALL_DIR) $(1)/lib/network/wwan
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/data/* $(1)/lib/network/wwan/
+	shopt -s nullglob ; \
+	for filevar in $(1)/lib/network/wwan/*-* ; \
+	do \
+		FILENAME=$$$$(basename $$$$filevar) ; \
+		NEWNAME=$$$${FILENAME//-/:} ; \
+		mv "$(1)/lib/network/wwan/$$$$FILENAME" "$(1)/lib/network/wwan/$$$$NEWNAME" ; \
+	done
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))

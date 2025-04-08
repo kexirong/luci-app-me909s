@@ -40,8 +40,6 @@ modem_init() {
     }
     
     if [ $? -eq 0 ];then
-        # uci_toggle_state network "$interface" driver "ndis"
-        # uci_toggle_state network "$interface" device "eth1"
         uci_toggle_state network "$interface" ctl_device "$ctl_device"
         uci_toggle_state network "$interface" dat_device "$dat_device"
     fi
@@ -53,11 +51,8 @@ find_ecm_iface() {
     config_get proto "$interface" proto
     [ "$proto" = "ecm" ] || return 0
     __FIND_NDIS_IFACE=1
-    #标记为不可用
     proto_set_available "$interface" 0
-    #初始化
     modem_init $interface
-    #标记为可用并打开接口
     proto_set_available "$interface" 1
     ifup $interface
     exit 0

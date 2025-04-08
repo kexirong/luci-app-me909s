@@ -1,49 +1,7 @@
 local uci = require"uci".cursor(nil, "/var/state")
 local sys = require "luci.sys"
-
-function ToStringEx(value)
-    if type(value) == 'table' then
-        return TableToStr(value)
-    elseif type(value) == 'string' then
-        return "\'" .. value .. "\'"
-    else
-        return tostring(value)
-    end
-end
-function TableToStr(t)
-    if t == nil then
-        return ""
-    end
-    local retstr = "{"
-
-    local i = 1
-    for key, value in pairs(t) do
-        local signal = ","
-        if i == 1 then
-            signal = ""
-        end
-
-        if key == i then
-            retstr = retstr .. signal .. ToStringEx(value)
-        else
-            if type(key) == 'number' or type(key) == 'string' then
-                retstr = retstr .. signal .. '[' .. ToStringEx(key) .. "]=" .. ToStringEx(value)
-            else
-                if type(key) == 'userdata' then
-                    retstr = retstr .. signal .. "*s" .. TableToStr(getmetatable(key)) .. "*e" .. "=" ..
-                                 ToStringEx(value)
-                else
-                    retstr = retstr .. signal .. key .. "=" .. ToStringEx(value)
-                end
-            end
-        end
-
-        i = i + 1
-    end
-
-    retstr = retstr .. "}"
-    return retstr
-end
+local json  = require("luci.jsonc")
+ 
 local target_interface = sys.exec("grep \".model=\" /var/state/network | awk -F'.' '{print $2}'")
 sys.exec("logger -t ME909s advance DEBUG " .. target_interface)
 
@@ -56,13 +14,6 @@ m = Map("me909s")
 m:append(Template("me909s/css"))
 ss = m:section(SimpleSection, "IMEI", "修改IMEI模块会重启")
 function ss.parse(self, section, novld)
-    sys.exec("logger -t ME909s advance ss.parse  DEBUG " .. TableToStr(luci.http.formvalue() or {}))
-    local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
-    if cur_imei and new_imei ~= cur_imei then
-        sys.exec("logger -t ME909s advance ss.parse DEBUG " .. new_imei)
-    end
-    sys.exec("logger -t ME909s advance ss.parse DEBUG " ..
-                 (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
 end
 
 imei = ss:option(Value, "imei", translate("IMEI"))
@@ -78,6 +29,7 @@ end
 local set_imei_btn = ss:option(Button, "set_imei", translate("设置IMEI"))
 set_imei_btn.inputtitle = translate("确定")
 set_imei_btn.inputstyle = "apply"
+-- set_imei_btn:depends("imei", cur_imei)
 
 local hex_to_bits = {
     ["0"] = "0000",
@@ -166,37 +118,73 @@ mode:value("03", translate("LTE"))
 mode:value("02", translate("UMTS"))
 mode:value("01", translate("GSM"))
 mode:value("00", translate("AUTO"))
+mode.default = "00"
 
 local gms_umts_bands = {
-    ["80"] = "GSM DCS 1800",
-    ["100"] = "EGSM 900",
-    ["200"] = "PGSM 900",
-    ["400000"] = "Band 1",
-    ["2000000000000"] = "Band 8"
+    order = {"GSM DCS 1800", "EGSM 900", "PGSM 900", "Band 1", "Band 8"},
+    data = {
+        ["GSM DCS 1800"] = "80",
+        ["EGSM 900"] = "100",
+        ["PGSM 900"] = "200",
+        ["Band 1"] = "400000",
+        ["Band 8"] = "2000000000000"
+    }
 }
+
 local gms_umts_band = ss:option(MultiValue, "gms_umts_band", translate("GMS/UMTS频段"))
-for v, k in pairs(gms_umts_bands) do
-    gms_umts_band:value(v, k)
+for _, key in ipairs(gms_umts_bands.order) do
+    gms_umts_band:value(gms_umts_bands.data[key], key)
 end
 
 local lte_bands = {
-    ["1"] = "FDD1",
-    ["4"] = "FDD3",
-    ["10"] = "FDD5",
-    ["80"] = "FDD8",
-    ["200000000"] = "TDD34",
-    ["2000000000"] = "TDD38",
-    ["4000000000"] = "TDD39",
-    ["8000000000"] = "TDD40",
-    ["10000000000"] = "TDD41"
+    order = {"FDD1", "FDD3", "FDD5", "FDD8", "TDD34", "TDD38", "TDD39", "TDD40", "TDD41"},
+    data = {
+        ["FDD1"] = "1",
+        ["FDD3"] = "4",
+        ["FDD5"] = "10",
+        ["FDD8"] = "80",
+        ["TDD34"] = "200000000",
+        ["TDD38"] = "2000000000",
+        ["TDD39"] = "4000000000",
+        ["TDD40"] = "8000000000",
+        ["TDD41"] = "10000000000"
+    }
 }
 local let_band = ss:option(MultiValue, "let_band", translate("LET频段"))
-for v, k in pairs(lte_bands) do
-    let_band:value(v, k)
+for _, key in ipairs(lte_bands.order) do
+    let_band:value(lte_bands.data[key], key)
 end
 
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
 set_band_btn.inputtitle = translate("确定")
 set_band_btn.inputstyle = "apply"
+
+if luci.http.formvalue("cbid.me909s.1.set_imei") then
+    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
+    local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
+    if cur_imei and new_imei ~= cur_imei then
+        sys.exec("logger -t ME909s DEBUG set imei" .. new_imei)
+    end
+    sys.exec("logger -t ME909s advance DEBUG " ..
+                 (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
+end
+
+if luci.http.formvalue("cbid.me909s.1.set_band") then
+    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
+    local mode = luci.http.formvalue("cbid.me909s.1.mode")
+    if mode     then
+        sys.exec("logger -t ME909s DEBUG set mode" .. mode)
+    end
+
+    local gms_umts_band = luci.http.formvalue("cbid.me909s.1.gms_umts_band")
+    if gms_umts_band then
+        sys.exec("logger -t ME909s DEBUG set gms_umts_band" .. json.stringify(gms_umts_band))
+    end
+    local let_band = luci.http.formvalue("cbid.me909s.1.let_band")
+    if let_band then
+        sys.exec("logger -t ME909s DEBUG set let_band" .. json.stringify(let_band))
+    end
+ 
+end
 
 return m

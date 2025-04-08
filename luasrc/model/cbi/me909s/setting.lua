@@ -20,9 +20,14 @@ usb_power.default = usb_val
 usb_power:value("1", translate("开"))
 usb_power:value("0", translate("关"))
 
-local apply = luci.http.formvalue("cbi.apply")
-if apply then
+-- local apply = luci.http.formvalue("cbi.apply")
+-- if apply then
+--     sys.exec("/etc/init.d/me909s reload")
+-- end
+
+function m.on_commit(self)
     sys.exec("/etc/init.d/me909s reload")
 end
+
 
 return m

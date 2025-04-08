@@ -42,6 +42,7 @@ proto_ecm_setup() {
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     dat_device=$(uci_get_state network "$interface" dat_device)
     : ${device:=$ctl_device}
+    [ -n "$delay" ] && sleep "$delay"
     
     [ -n "$device" ] || {
         echo "No control device specified"
@@ -61,12 +62,9 @@ proto_ecm_setup() {
     devpath="$(readlink -f /sys/class/tty/$devname/device)"
     ifname="$( ls "$devpath"/../../*/net )"
     
-    
-    [ -n "$delay" ] && sleep "$delay"
-    
     pid=$(pgrep -f "/lib/me909s.sh cellular")
     [ -n pid ] && kill $pid
-
+    echo "begin to get modem hardwave info"
     modem_hw_info "$ctl_device" "$interface"
     
     lock_modem_at $$ "me909s"
