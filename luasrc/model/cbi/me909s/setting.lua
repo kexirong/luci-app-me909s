@@ -1,6 +1,8 @@
 local sys = require "luci.sys"
 
 m = Map("me909s", translate("设置"))
+m.apply_on_parse = true
+m.on_apply = function() sys.call("/etc/init.d/me909s reload") end
 
 ts = m:section(TypedSection, "setting")
 ts.addremove = false
@@ -19,15 +21,5 @@ usb_power = ts:option(ListValue, "usb_power", translate("USB开关"))
 usb_power.default = usb_val
 usb_power:value("1", translate("开"))
 usb_power:value("0", translate("关"))
-
--- local apply = luci.http.formvalue("cbi.apply")
--- if apply then
---     sys.exec("/etc/init.d/me909s reload")
--- end
-
-function m.on_commit(self)
-    sys.exec("/etc/init.d/me909s reload")
-end
-
 
 return m

@@ -14,7 +14,7 @@ __FIND_ECM_IFACE=0
 modem_init() {
     local interface=$1
     local old_cb control atcom device ctl_device dat_device
-
+    
     json_set_namespace ecm old_cb
     json_init
     json_load "$(cat $usb)"
@@ -25,14 +25,6 @@ modem_init() {
     ctl_device=/dev/ttyUSB$control
     dat_device=/dev/ttyUSB$atcom
     
-    timeout=0
-    while [ ! -e "$ctl_device" ] ;do
-        sleep 1
-        timeout=$((timeout+1))
-        if [ $timeout -gt 10 ];then
-            exit 1
-        fi
-    done
     config_get device "$interface" device
     [ -n $device ] && [ $device = $ctl_device ] || {
         uci_set network "$interface" device "$ctl_device"
@@ -47,12 +39,22 @@ modem_init() {
 
 find_ecm_iface() {
     local interface="$1"
-    local proto
+    local proto timeout
     config_get proto "$interface" proto
     [ "$proto" = "ecm" ] || return 0
     __FIND_NDIS_IFACE=1
     proto_set_available "$interface" 0
     modem_init $interface
+    
+    timeout=0
+    while true;do
+        ubus call network.interface.lan status &>/dev/null
+        [ $? -eq 0 ] && break
+        [ $timeout -gt 30 ] && exit 1
+        timeout=$((timeout+1))
+        sleep 1
+    done
+    
     proto_set_available "$interface" 1
     ifup $interface
     exit 0
@@ -60,7 +62,7 @@ find_ecm_iface() {
 
 config_load network
 config_foreach find_ecm_iface interface
-# set network.me909s.simslot='1'
+
 if [ $__FIND_ECM_IFACE -eq 0 ];then
     uci -q batch <<EOF
 delete network.me909s

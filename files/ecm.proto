@@ -12,7 +12,6 @@ proto_ecm_init_config() {
     no_device=1
     available=1
     proto_config_add_string "device:device"
-    # proto_config_add_string simslot
     proto_config_add_string apn
     proto_config_add_string auth
     proto_config_add_string username
@@ -28,7 +27,7 @@ proto_ecm_init_config() {
 proto_ecm_setup() {
     local interface=$1
     
-    local ctl_device dat_device devname devpath ifname operator pid
+    local ctl_device dat_device devname devpath ifname operator pid timeout
     
     local device apn auth username password pincode delay pdptype profile $PROTO_DEFAULT_OPTIONS
     
@@ -41,30 +40,36 @@ proto_ecm_setup() {
     
     ctl_device=$(uci_get_state network "$interface" ctl_device)
     dat_device=$(uci_get_state network "$interface" dat_device)
-    : ${device:=$ctl_device}
-    [ -n "$delay" ] && sleep "$delay"
-    
+    # : ${device:=$ctl_device}
+    [ -n "$device" ] || device=$ctl_device
+
     [ -n "$device" ] || {
         echo "No control device specified"
         proto_notify_error "$interface" NO_DEVICE
         proto_set_available "$interface" 0
         return 1
     }
-    
-    [ -e "$device" ] || {
-        echo "Control device not valid"
-        proto_notify_error "$interface" NO_DEVICE
-        proto_set_available "$interface" 0
-        return 1
-    }
+
+    [ -n "$delay" ] || delay=10
+    timeout=0
+    while [ ! -e "$ctl_device" ] ;do
+        sleep 1
+        timeout=$((timeout+1))
+        if [ $timeout -gt $delay ];then
+            echo "Control device not valid"
+            proto_notify_error "$interface" NO_DEVICE
+            proto_set_available "$interface" 0
+            return 1
+        fi
+    done
     
     devname="$(basename "$device")"
     devpath="$(readlink -f /sys/class/tty/$devname/device)"
     ifname="$( ls "$devpath"/../../*/net )"
     
     pid=$(pgrep -f "/lib/me909s.sh cellular")
-    [ -n pid ] && kill $pid
-    echo "begin to get modem hardwave info"
+    [ -n $pid ] && kill $pid
+    
     modem_hw_info "$ctl_device" "$interface"
     
     lock_modem_at $$ "me909s"
@@ -72,7 +77,6 @@ proto_ecm_setup() {
         proto_notify_error "$interface" "LOCK_AT_ERROR"
         return 1
     }
-    
     __sim_state="$(uci_get_state network "$interface" sim_state)"
     case "$__sim_state" in
         "READY")
@@ -125,7 +129,7 @@ proto_ecm_setup() {
             fi
         fi
     fi
-
+    
     __output=$(send_at "$device" "AT+CGREG?")
     [ $? -eq 0 ] && {
         __res=$(echo "$__output" | awk -F': ' '/\+CGREG: / {print $2}')
@@ -189,7 +193,7 @@ proto_ecm_setup() {
     proto_send_update "$interface"
     
     [ "$pdptype" = "IP" -o "$pdptype" = "IPV6" -o "$pdptype" = "IPV4V6" ] || pdptype="IP"
-
+    
     [ "$pdptype" = "IP" -o "$pdptype" = "IPV4V6" ] && {
         json_init
         json_add_string name wwan_4

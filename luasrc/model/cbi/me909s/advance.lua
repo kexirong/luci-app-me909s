@@ -1,7 +1,7 @@
 local uci = require"uci".cursor(nil, "/var/state")
 local sys = require "luci.sys"
-local json  = require("luci.jsonc")
- 
+local json = require("luci.jsonc")
+
 local target_interface = sys.exec("grep \".model=\" /var/state/network | awk -F'.' '{print $2}'")
 sys.exec("logger -t ME909s advance DEBUG " .. target_interface)
 
@@ -159,32 +159,32 @@ local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
 set_band_btn.inputtitle = translate("确定")
 set_band_btn.inputstyle = "apply"
 
-if luci.http.formvalue("cbid.me909s.1.set_imei") then
-    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
-    local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
-    if cur_imei and new_imei ~= cur_imei then
-        sys.exec("logger -t ME909s DEBUG set imei" .. new_imei)
+function m.on_save(map)
+    if luci.http.formvalue("cbid.me909s.1.set_imei") then
+        sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
+        local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
+        if cur_imei and new_imei ~= cur_imei then
+            sys.exec("logger -t ME909s DEBUG set imei" .. new_imei)
+        end
+        sys.exec("logger -t ME909s advance DEBUG " ..
+                     (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
     end
-    sys.exec("logger -t ME909s advance DEBUG " ..
-                 (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
+
+    if luci.http.formvalue("cbid.me909s.1.set_band") then
+        sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
+        local mode = luci.http.formvalue("cbid.me909s.1.mode")
+        if mode then
+            sys.exec("logger -t ME909s DEBUG set mode" .. mode)
+        end
+
+        local gms_umts_band = luci.http.formvalue("cbid.me909s.1.gms_umts_band")
+        if gms_umts_band then
+            sys.exec("logger -t ME909s DEBUG set gms_umts_band" .. json.stringify(gms_umts_band))
+        end
+        local let_band = luci.http.formvalue("cbid.me909s.1.let_band")
+        if let_band then
+            sys.exec("logger -t ME909s DEBUG set let_band" .. json.stringify(let_band))
+        end
+    end
 end
-
-if luci.http.formvalue("cbid.me909s.1.set_band") then
-    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
-    local mode = luci.http.formvalue("cbid.me909s.1.mode")
-    if mode     then
-        sys.exec("logger -t ME909s DEBUG set mode" .. mode)
-    end
-
-    local gms_umts_band = luci.http.formvalue("cbid.me909s.1.gms_umts_band")
-    if gms_umts_band then
-        sys.exec("logger -t ME909s DEBUG set gms_umts_band" .. json.stringify(gms_umts_band))
-    end
-    local let_band = luci.http.formvalue("cbid.me909s.1.let_band")
-    if let_band then
-        sys.exec("logger -t ME909s DEBUG set let_band" .. json.stringify(let_band))
-    end
- 
-end
-
 return m
