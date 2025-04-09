@@ -1,4 +1,4 @@
-local uci = require"uci".cursor(nil, "/var/state")
+local uci = require "uci".cursor(nil, "/var/state")
 local sys = require "luci.sys"
 
 m = Map("me909s")

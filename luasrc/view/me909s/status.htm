@@ -39,3 +39,11 @@
 	</div>
     <% end %>
 </div>
+<script type="text/javascript">
+      'require network';
+      var protocol = network.getProtocol('ecm')
+      console.log("protocol: " + protocol)
+      var name=protocol.getName()
+      console.log("name: " + name)
+</script>
+ 

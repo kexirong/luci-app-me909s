@@ -94,7 +94,7 @@ proto_ecm_setup() {
         ;;
         "ERROR")
             proto_notify_error "$interface" "SIM_ERROR"
-            proto_block_restart "$interface"
+            # proto_block_restart "$interface"
             return 1
         ;;
         *)

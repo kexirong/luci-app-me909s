@@ -12,19 +12,14 @@ end
 
 m = Map("me909s")
 m:append(Template("me909s/css"))
-ss = m:section(SimpleSection, "IMEI", "修改IMEI模块会重启")
+m:append(Template("me909s/js"))
+ss = m:section(SimpleSection, "IMEI", "修改IMEI后重启模块生效")
 function ss.parse(self, section, novld)
 end
 
 imei = ss:option(Value, "imei", translate("IMEI"))
 imei.default = cur_imei
 imei.datatype = "rangelength(15,15)"
-imei.validate = function(self, value)
-    if not value:match("^%d{15}$") then
-        return nil, "IMEI 必须为纯数字"
-    end
-    return value
-end
 
 local set_imei_btn = ss:option(Button, "set_imei", translate("设置IMEI"))
 set_imei_btn.inputtitle = translate("确定")
@@ -107,7 +102,7 @@ function hex_or(a, b)
     return hex_bitwise_op(a, b, "OR")
 end
 
-ss = m:section(SimpleSection, "BAND", "设置BAND模块会重启")
+ss = m:section(SimpleSection, "网络设置", "BAND设置可能需要重启模块生效")
 function ss.parse(self, section, novld)
 end
 
@@ -119,6 +114,9 @@ mode:value("02", translate("UMTS"))
 mode:value("01", translate("GSM"))
 mode:value("00", translate("AUTO"))
 mode.default = "00"
+
+local roam = s:option(Flag, "roam", translate("支持漫游"))
+roam.default = "0"
 
 local gms_umts_bands = {
     order = {"GSM DCS 1800", "EGSM 900", "PGSM 900", "Band 1", "Band 8"},
@@ -156,13 +154,18 @@ for _, key in ipairs(lte_bands.order) do
 end
 
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
-set_band_btn.inputtitle = translate("确定")
+set_band_btn.inputtitle = translate("应用")
 set_band_btn.inputstyle = "apply"
 
 function m.on_save(map)
     if luci.http.formvalue("cbid.me909s.1.set_imei") then
+
         sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
         local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
+        if not value:match("^%d{15}$") then
+            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?error_msg=IMEI必须是15位数字")
+            return
+        end
         if cur_imei and new_imei ~= cur_imei then
             sys.exec("logger -t ME909s DEBUG set imei" .. new_imei)
         end
