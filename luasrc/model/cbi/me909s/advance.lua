@@ -115,7 +115,7 @@ mode:value("01", translate("GSM"))
 mode:value("00", translate("AUTO"))
 mode.default = "00"
 
-local roam = s:option(Flag, "roam", translate("支持漫游"))
+local roam = ss:option(Flag, "roam", translate("支持漫游"))
 roam.default = "0"
 
 local gms_umts_bands = {
@@ -157,13 +157,34 @@ local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
 set_band_btn.inputtitle = translate("应用")
 set_band_btn.inputstyle = "apply"
 
+function checkIMEI(imei)
+    if not imei or not imei:match("^%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d$") then
+        return "IMEI必须是15位数字"
+    end
+    local sum = 0
+    for i = 1, 14 do
+        local num = tonumber(imei:sub(i, i))
+        if i % 2 == 0 then
+            local doubled = num * 2
+            sum = sum + math.floor(doubled / 10) + (doubled % 10)
+        else
+            sum = sum + num
+        end
+    end
+    local checksum = (10 - (sum % 10)) % 10
+    if checksum ~= tonumber(imei:sub(15, 15)) then
+        return "IMEI校验位应为" .. checksum
+    end
+end
+
 function m.on_save(map)
     if luci.http.formvalue("cbid.me909s.1.set_imei") then
 
         sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
         local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
-        if not value:match("^%d{15}$") then
-            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?error_msg=IMEI必须是15位数字")
+        local checkMsg = checkIMEI(new_imei)
+        if checkMsg then
+            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?error_msg=" .. checkMsg)
             return
         end
         if cur_imei and new_imei ~= cur_imei then

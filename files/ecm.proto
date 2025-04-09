@@ -68,7 +68,7 @@ proto_ecm_setup() {
     ifname="$( ls "$devpath"/../../*/net )"
     
     pid=$(pgrep -f "/lib/me909s.sh cellular")
-    [ -n $pid ] && kill $pid
+    [ -n "$pid" ] && kill $pid
     
     modem_hw_info "$ctl_device" "$interface"
     

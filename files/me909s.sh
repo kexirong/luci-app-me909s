@@ -89,7 +89,7 @@ modem_hw_info() {
             sleep 1
             continue
         }
-        send_at "$ctl_device" "ATE1"
+        send_at "$ctl_device" "ATE1" >/dev/null
         [ $? -eq 0 ] || sleep 1
         __output=$(send_at "$ctl_device" "ATI")
         if [ $? -eq 0 ];then

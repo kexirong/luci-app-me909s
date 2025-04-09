@@ -72,14 +72,6 @@ return network.registerProtocol('ecm', {
 			}, this));
 		};
 
-		// o = s.taboption('general', form.Value, 'service', _('Service Type'));
-		// o.value('', _('Modem default'));
-		// o.value('preferlte', _('Prefer LTE'));
-		// o.value('preferumts', _('Prefer UMTS'));
-		// o.value('lte', 'LTE');
-		// o.value('umts', 'UMTS/GPRS');
-		// o.value('gsm', _('GPRS only'));
-		// o.value('auto', _('auto'));
 		s.taboption('general', form.Value, 'pincode', _('PIN'));
 
 		o = s.taboption('general', form.ListValue, 'pdptype', _('IP Protocol'));
@@ -92,11 +84,11 @@ return network.registerProtocol('ecm', {
 		o.default = 'auto';
 		
 		o = s.taboption('general', form.ListValue, 'auth', _('Authentication Type'));
+		o.default = '0';
+		o.value('0', 'NONE');
 		o.value('3', 'PAP/CHAP');
 		o.value('1', 'PAP');
 		o.value('2', 'CHAP');
-		o.value('0', 'NONE');
-		o.default = '0';
 
 		o = s.taboption('general', form.Value, 'username', _('PAP/CHAP username'));
 		o.depends('auth', '1');
@@ -108,7 +100,6 @@ return network.registerProtocol('ecm', {
 		o.depends('auth', '2');
 		o.depends('auth', '3');
 		o.password = true;
-
 
 		if (L.hasSystemFeature('ipv6')) {
 			o = s.taboption('advanced', form.ListValue, 'ipv6', _('Obtain IPv6-Address'));
