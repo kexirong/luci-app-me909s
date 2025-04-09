@@ -48,7 +48,8 @@ find_ecm_iface() {
     
     timeout=0
     while true;do
-        ubus call network.interface.lan status &>/dev/null
+        # ubus call network.interface.lan status &>/dev/null
+        pgrep netifd &>/dev/null
         [ $? -eq 0 ] && break
         [ $timeout -gt 30 ] && exit 1
         timeout=$((timeout+1))
