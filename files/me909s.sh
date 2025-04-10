@@ -1,5 +1,5 @@
 #!/bin/sh
-
+. /usr/share/libubox/jshn.sh
 . /lib/config/uci.sh
 
 lock_modem_at() {
@@ -96,7 +96,7 @@ query_modem_config() {
             mode=$(echo -n "$__res" | cut -d',' -f1 | tr -d '"')
             gms_umts_band=$(echo -n "$__res" | cut -d',' -f2)
             roam=$(echo -n "$__res" | cut -d',' -f3)
-            lte_band=$(echo -n "$__res" | cut -d',' -f4)
+            lte_band=$(echo -n "$__res" | cut -d',' -f5)
             json_init
             json_add_string mode "$mode"
             json_add_string gms_umts_band "$gms_umts_band"

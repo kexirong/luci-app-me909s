@@ -129,7 +129,10 @@ if json_data and json_data.mode then
     mode.default = json_data.mode
 end
 
-local roam = ss:option(Flag, "roam", translate("支持漫游"))
+local roam = ss:option(ListValue, "roam", translate("漫游"))
+roam:value("1", translate("支持"))
+roam:value("0", translate("不支持"))
+roam.widget = "radio"
 roam.default = "0"
 if json_data and json_data.roam then
     roam.default = json_data.roam
@@ -152,7 +155,7 @@ for _, key in ipairs(gms_umts_bands.order) do
 end
 if json_data and json_data.gms_umts_band then
     local default_bands = {}
-    for _, band in ipairs(json_data.gms_umts_band) do
+    for _, band in pairs(gms_umts_bands.data) do
         local and_ret = hex_and(band, json_data.gms_umts_band)
         if and_ret and and_ret ~= "0" then
             table.insert(default_bands, band)
@@ -175,20 +178,20 @@ local lte_bands = {
         ["TDD41"] = "10000000000"
     }
 }
-local let_band = ss:option(MultiValue, "let_band", translate("LET频段"))
+local lte_band = ss:option(MultiValue, "lte_band", translate("LET频段"))
 for _, key in ipairs(lte_bands.order) do
-    let_band:value(lte_bands.data[key], key)
+    lte_band:value(lte_bands.data[key], key)
 end
 
-if json_data and json_data.let_band then
+if json_data and json_data.lte_band then
     local default_bands = {}
-    for _, band in ipairs(json_data.let_band) do
-        local and_ret = hex_and(band, json_data.let_band)
+    for _, band in pairs(lte_bands.data) do
+        local and_ret = hex_and(band, json_data.lte_band)
         if and_ret and and_ret ~= "0" then
             table.insert(default_bands, band)
         end
     end
-    let_band.default = default_bands
+    lte_band.default = default_bands
 end
 
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
@@ -199,8 +202,8 @@ ss = m:section(SimpleSection, "重启", "采用断电重启方式")
 function ss.parse(self, section, novld)
 end
 
-local set_band_btn = ss:option(Button, "restart", translate("重启模块"))
-set_band_btn.inputtitle = translate("重启")
+local set_band_btn = ss:option(Button, "restart")
+set_band_btn.inputtitle = translate("执行重启")
 set_band_btn.inputstyle = "apply"
 
 function checkIMEI(imei)
@@ -251,9 +254,9 @@ function m.on_save(map)
         if gms_umts_band then
             sys.exec("logger -t ME909s DEBUG set gms_umts_band" .. json.stringify(gms_umts_band))
         end
-        local let_band = luci.http.formvalue("cbid.me909s.1.let_band")
-        if let_band then
-            sys.exec("logger -t ME909s DEBUG set let_band" .. json.stringify(let_band))
+        local lte_band = luci.http.formvalue("cbid.me909s.1.lte_band")
+        if lte_band then
+            sys.exec("logger -t ME909s DEBUG set lte_band " .. json.stringify(lte_band) .. type(lte_band))
         end
     end
 end
