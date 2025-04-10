@@ -6,8 +6,11 @@ local target_interface = sys.exec("grep \".model=\" /var/state/network | awk -F'
 sys.exec("logger -t ME909s advance DEBUG " .. target_interface)
 
 local cur_imei
+local ctl_device
 if target_interface then
-    cur_imei = uci:get("network", string.gsub(target_interface, "%s+", ""), "imei")
+    target_interface = string.gsub(target_interface, "%s+", "")
+    cur_imei = uci:get("network", target_interface, "imei")
+    ctl_device = uci:get("network", target_interface, "ctl_device")
 end
 
 m = Map("me909s")
@@ -102,6 +105,14 @@ function hex_or(a, b)
     return hex_bitwise_op(a, b, "OR")
 end
 
+local json_data
+if ctl_device then
+    local out = sys.exec("/lib/me909s.sh query_modem_config " .. ctl_device)
+    if out and #out > 1 then
+        json_data = json.parse(out)
+    end
+end
+
 ss = m:section(SimpleSection, "网络设置", "BAND设置可能需要重启模块生效")
 function ss.parse(self, section, novld)
 end
@@ -114,9 +125,15 @@ mode:value("02", translate("UMTS"))
 mode:value("01", translate("GSM"))
 mode:value("00", translate("AUTO"))
 mode.default = "00"
+if json_data and json_data.mode then
+    mode.default = json_data.mode
+end
 
 local roam = ss:option(Flag, "roam", translate("支持漫游"))
 roam.default = "0"
+if json_data and json_data.roam then
+    roam.default = json_data.roam
+end
 
 local gms_umts_bands = {
     order = {"GSM DCS 1800", "EGSM 900", "PGSM 900", "Band 1", "Band 8"},
@@ -132,6 +149,16 @@ local gms_umts_bands = {
 local gms_umts_band = ss:option(MultiValue, "gms_umts_band", translate("GMS/UMTS频段"))
 for _, key in ipairs(gms_umts_bands.order) do
     gms_umts_band:value(gms_umts_bands.data[key], key)
+end
+if json_data and json_data.gms_umts_band then
+    local default_bands = {}
+    for _, band in ipairs(json_data.gms_umts_band) do
+        local and_ret = hex_and(band, json_data.gms_umts_band)
+        if and_ret and and_ret ~= "0" then
+            table.insert(default_bands, band)
+        end
+    end
+    gms_umts_band.default = default_bands
 end
 
 local lte_bands = {
@@ -153,8 +180,27 @@ for _, key in ipairs(lte_bands.order) do
     let_band:value(lte_bands.data[key], key)
 end
 
+if json_data and json_data.let_band then
+    local default_bands = {}
+    for _, band in ipairs(json_data.let_band) do
+        local and_ret = hex_and(band, json_data.let_band)
+        if and_ret and and_ret ~= "0" then
+            table.insert(default_bands, band)
+        end
+    end
+    let_band.default = default_bands
+end
+
 local set_band_btn = ss:option(Button, "set_band", translate("设置BAND"))
 set_band_btn.inputtitle = translate("应用")
+set_band_btn.inputstyle = "apply"
+
+ss = m:section(SimpleSection, "重启", "采用断电重启方式")
+function ss.parse(self, section, novld)
+end
+
+local set_band_btn = ss:option(Button, "restart", translate("重启模块"))
+set_band_btn.inputtitle = translate("重启")
 set_band_btn.inputstyle = "apply"
 
 function checkIMEI(imei)
