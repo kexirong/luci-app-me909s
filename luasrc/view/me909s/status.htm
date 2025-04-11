@@ -5,41 +5,51 @@
         <h3><%:Status%><span id="temp"> -°c</span></h3>
         <div class="table">
             <div class="tr">
-                <div class="td left" width="33%"><%:manufacturer%></div><div id="manufacturer" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:model%></div><div id="model" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:品牌%></div><div id="manufacturer" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:型号%></div><div id="model" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:revision%></div><div id="revision" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:imei%></div><div id="imei" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:固件版本%></div><div id="revision" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:IMEI%></div><div id="imei" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
                 <div class="td left" width="33%" id="simslot">eSIM</div><div id="sim_state" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:operator%></div><div id="operator" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:运营商%></div><div id="operator" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:iccid%></div><div id="iccid" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:imsi%></div><div id="imsi" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:ICCID%></div><div id="iccid" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:IMSI%></div><div id="imsi" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:mode%></div><div id="mode" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:band%></div><div id="band" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:网络%></div><div id="mode" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:频段%></div><div id="band" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:pci%></div><div id="pci" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:(E)arfcn%></div><div id="arfcn" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:物理小区%></div><div id="pci" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:频点%></div><div id="arfcn" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:rxlev%></div><div id="rxlev" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:rsrp%></div><div id="rsrp" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:信号强度%></div><div id="rxlev" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:接收功率%></div><div id="rsrp" class="td left" width="33%">-</div>
             </div>
             <div class="tr">
-                <div class="td left" width="33%"><%:rsrq%></div><div id="rsrq" class="td left" width="33%">-</div>
-                <div class="td left" width="33%"><%:tac%></div><div id="tac" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:接收质量%></div><div id="rsrq" class="td left" width="33%">-</div>
+                <div class="td left" width="33%"><%:跟踪区码%></div><div id="tac" class="td left" width="33%">-</div>
             </div>
         </div>
     </div>   
 </div>
 <script type="text/javascript">
+    let operaMap = {
+        46000: '中国移动',
+        46001: '中国联通',
+        46002: '中国移动',
+        46003: '中国电信',
+        46007: '中国移动',
+        46009: '中国联通',
+        46011: '中国电信',
+        46015: '中国广电',
+    };
     (async function () {
         let interface;
         await L.require('uci')
@@ -97,7 +107,7 @@
                 sim_state.innerHTML = String.format('%s', status.sim_state);
             }
             if (status.operator) {
-                operator.innerHTML = String.format('%s', status.operator);
+                operator.innerHTML = String.format('%s', operaMap[status.operator] || status.operator);
             }
             if (status.iccid) {
                 iccid.innerHTML = String.format('%s', status.iccid);
@@ -118,13 +128,13 @@
                 arfcn.innerHTML = String.format('%s', status.arfcn);
             }
             if (status.rxlev) {
-                rxlev.innerHTML = String.format('%s', status.rxlev);
+                rxlev.innerHTML = String.format('%sdbm', status.rxlev);
             }
             if (status.rsrp) {
-                rsrp.innerHTML = String.format('%s', status.rsrp);
+                rsrp.innerHTML = String.format('%sdbm', status.rsrp);
             }
             if (status.rsrq) {
-                rsrq.innerHTML = String.format('%s', status.rsrq);
+                rsrq.innerHTML = String.format('%sdbm', status.rsrq);
             }
             if (status.tac) {
                 tac.innerHTML = String.format('%s', status.tac);

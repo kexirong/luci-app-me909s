@@ -13,6 +13,10 @@ if target_interface then
 end
 
 m = Map("me909s")
+if not ctl_device or ctl_device == '' then
+    m:section(SimpleSection, "错误", "未检测到模块")
+    return m
+end
 m:append(Template("me909s/css"))
 m:append(Template("me909s/js"))
 ss = m:section(SimpleSection, "IMEI", "修改IMEI后重启模块生效")
@@ -112,7 +116,7 @@ if ctl_device then
     end
 end
 
-ss = m:section(SimpleSection, "网络设置", "BAND设置可能需要重启模块生效")
+ss = m:section(SimpleSection, "网络设置", "BAND设置不需重启，立即生效")
 function ss.parse(self, section, novld)
 end
 
@@ -226,17 +230,21 @@ function checkIMEI(imei)
 end
 
 function m.on_save(map)
-    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
     if luci.http.formvalue("cbid.me909s.1.set_imei") then
         local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
         local checkMsg = checkIMEI(new_imei)
         if checkMsg then
-            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?error_msg=" .. checkMsg)
+            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?msg=" .. checkMsg)
             return
         end
         if cur_imei and new_imei ~= cur_imei then
-            local cmd_str = "/lib/me909s.sh query_modem_config " .. ctl_device
-            sys.exec("logger -t ME909s DEBUG set imei: " .. cmd_str)
+            local msg = '设置成功，重启生效'
+            local ret_code = sys.call("/lib/me909s.sh mrd_imei " .. ctl_device .. " " .. new_imei)
+            if ret_code ~= 0 then
+                ret_code = '设置失败'
+            end
+            luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?msg=" .. msg)
+
         end
     end
 
@@ -246,8 +254,6 @@ function m.on_save(map)
         if not mode then
             mode = "00"
         end
-
-        -- "02",3FFFFFFF,1,2,7FFFFFFFFFFFFFFF,,
 
         local roam = luci.http.formvalue("cbid.me909s.1.roam")
         if not roam then
@@ -285,7 +291,16 @@ function m.on_save(map)
         end
 
         local config = string.format('"%s",%s,%s,2,%s,,', mode, hex_gms_umts_band, roam, hex_lte_band)
-        sys.exec("/lib/me909s.sh submit_modem_config " .. ctl_device .." ".. config)
+        local msg = '设置成功'
+        local ret_code = sys.call("/lib/me909s.sh submit_modem_config " .. ctl_device .. " " .. config)
+        if ret_code ~= 0 then
+            msg = '设置失败'
+        end
+        luci.http.redirect(luci.dispatcher.build_url("admin", "me909s", "advance") .. "?msg=" .. msg)
+
+    end
+
+    if luci.http.formvalue("cbid.me909s.1.restart") then
     end
 end
 return m

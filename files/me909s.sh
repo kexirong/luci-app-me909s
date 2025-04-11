@@ -123,10 +123,10 @@ submit_modem_config() {
     local _code=0
     local timeout=0
     while true; do
-        [ -e "$ctl_device" ] || return 1
+        [ -e "$ctl_device" ] || exit 1
         lock_modem_at $$ "me909s"
         [ $? -eq 0 ] || {
-            [ $timeout -gt 5 ] && return 1
+            [ $timeout -gt 5 ] && exit 1
             timeout=$((timeout + 1))
             sleep 1
             continue
