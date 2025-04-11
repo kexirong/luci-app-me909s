@@ -116,7 +116,7 @@ if ctl_device then
     end
 end
 
-ss = m:section(SimpleSection, "网络设置", "BAND设置不需重启，立即生效")
+ss = m:section(SimpleSection, "网络设置", "BAND设置后如断网，请重启接口")
 function ss.parse(self, section, novld)
 end
 
