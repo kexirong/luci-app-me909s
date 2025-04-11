@@ -37,13 +37,12 @@ send_at() {
 
 mrd_imei() {
     [ -f "/var/state/network" ] || exit 1
-    local ctl_device interface
-    local imei=$1
-    [ ${#imei} -eq 15 ] || exit 1
-    interface=$(grep ".model=" /var/state/network | awk -F'.' '{print $2}')
-    [ -z "$interface" ] && exit 1
-    ctl_device=$(uci_get_state network "$interface" ctl_device)
+    local ctl_device=$1
+    local imei=$2
+    local _code=0
+
     [ -z "$ctl_device" ] && exit 1
+    [ ${#imei} -eq 15 ] || exit 1
 
     local timeout=0
     while true; do
@@ -56,35 +55,41 @@ mrd_imei() {
             continue
         }
         send_at "$ctl_device" "AT*PROD=1"
-        [ $? -eq 0 ] || exit 1
+        [ $? -eq 0 ] || {
+            _code=1
+            break
+        }
         send_at "$ctl_device" "AT*MRD_IMEI=D"
-        if [ $? -ne 0 ]; then
+        [ $? -eq 0 ] || {
             send_at "$ctl_device" "AT*PROD=0"
-            exit 1
-        fi
+            _code=1
+            break
+        }
         send_at "$ctl_device" "AT*MRD_IMEI=W,$imei"
-        if [ $? -ne 0 ]; then
+        [ $? -eq 0 ] || {
             send_at "$ctl_device" "AT*PROD=0"
-            return 1
-        fi
+            _code=1
+            break
+        }
         send_at "$ctl_device" "AT*PROD=0"
-        unlock_modem_at "me909s"
-        return 0
+        break
     done
+    unlock_modem_at "me909s"
+    exit $_code
 }
 
 query_modem_config() {
     local ctl_device="$1"
-    [ -z "$ctl_device" ] && return 1
+    [ -z "$ctl_device" ] && exit 1
     local __output __res
     local mode gms_umts_band roam lte_band
 
     local timeout=0
     while true; do
-        [ -e "$ctl_device" ] || return 1
+        [ -e "$ctl_device" ] || exit 1
         lock_modem_at $$ "me909s"
         [ $? -eq 0 ] || {
-            [ $timeout -gt 5 ] && return 1
+            [ $timeout -gt 5 ] && exit 1
             timeout=$((timeout + 1))
             sleep 1
             continue
@@ -110,6 +115,29 @@ query_modem_config() {
     done
 }
 
+submit_modem_config() {
+    local ctl_device="$1"
+    local config="$2"
+    [ -z "$ctl_device" ] && exit 1
+    [ -z "$config" ] && exit 1
+    local _code=0
+    local timeout=0
+    while true; do
+        [ -e "$ctl_device" ] || return 1
+        lock_modem_at $$ "me909s"
+        [ $? -eq 0 ] || {
+            [ $timeout -gt 5 ] && return 1
+            timeout=$((timeout + 1))
+            sleep 1
+            continue
+        }
+        send_at "$ctl_device" "AT^SYSCFGEX=$config" &> /dev/null
+        _code=$?
+        unlock_modem_at "me909s"
+        exit $_code
+    done
+}
+
 modem_hw_info() {
     local ctl_device="$1"
     [ -z "$ctl_device" ] && exit 1
@@ -126,7 +154,7 @@ modem_hw_info() {
             sleep 1
             continue
         }
-        send_at "$ctl_device" "ATE1" >/dev/null
+        send_at "$ctl_device" "ATE1" &>/dev/null
         [ $? -eq 0 ] || sleep 1
         __output=$(send_at "$ctl_device" "ATI")
         if [ $? -eq 0 ]; then
@@ -177,10 +205,10 @@ modem_hw_info() {
 
 cellular() {
     local ctl_device="$1" interface="$2"
-    [ -z "$ctl_device" ] && return 1
+    [ -z "$ctl_device" ] && exit 1
     local __output __res __sys_mode __rssi __rscp __ecno __rsrp __sinr
     while true; do
-        [ -e "$ctl_device" ] || return 1
+        [ -e "$ctl_device" ] || exit 1
         lock_modem_at $$ "me909s"
         [ $? -eq 0 ] || {
             sleep 5
@@ -273,5 +301,9 @@ case "$__CMD" in
 "query_modem_config")
     shift
     query_modem_config $@
+    ;;
+"submit_modem_config")
+    shift
+    submit_modem_config $@
     ;;
 esac

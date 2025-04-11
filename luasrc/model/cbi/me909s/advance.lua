@@ -3,7 +3,6 @@ local sys = require "luci.sys"
 local json = require("luci.jsonc")
 
 local target_interface = sys.exec("grep \".model=\" /var/state/network | awk -F'.' '{print $2}'")
-sys.exec("logger -t ME909s advance DEBUG " .. target_interface)
 
 local cur_imei
 local ctl_device
@@ -227,9 +226,8 @@ function checkIMEI(imei)
 end
 
 function m.on_save(map)
+    sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
     if luci.http.formvalue("cbid.me909s.1.set_imei") then
-
-        sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
         local new_imei = luci.http.formvalue("cbid.me909s.1.imei")
         local checkMsg = checkIMEI(new_imei)
         if checkMsg then
@@ -237,27 +235,57 @@ function m.on_save(map)
             return
         end
         if cur_imei and new_imei ~= cur_imei then
-            sys.exec("logger -t ME909s DEBUG set imei" .. new_imei)
+            local cmd_str = "/lib/me909s.sh query_modem_config " .. ctl_device
+            sys.exec("logger -t ME909s DEBUG set imei: " .. cmd_str)
         end
-        sys.exec("logger -t ME909s advance DEBUG " ..
-                     (luci.http.formvalue("cbid.me909s.1.imei1") == cur_imei and "true" or 'false'))
     end
 
     if luci.http.formvalue("cbid.me909s.1.set_band") then
-        sys.exec("logger -t ME909s advance DEBUG " .. json.stringify(luci.http.formvalue() or {}))
+
         local mode = luci.http.formvalue("cbid.me909s.1.mode")
-        if mode then
-            sys.exec("logger -t ME909s DEBUG set mode" .. mode)
+        if not mode then
+            mode = "00"
         end
 
+        -- "02",3FFFFFFF,1,2,7FFFFFFFFFFFFFFF,,
+
+        local roam = luci.http.formvalue("cbid.me909s.1.roam")
+        if not roam then
+            roam = "0"
+        end
+        local hex_gms_umts_band = "0"
         local gms_umts_band = luci.http.formvalue("cbid.me909s.1.gms_umts_band")
         if gms_umts_band then
-            sys.exec("logger -t ME909s DEBUG set gms_umts_band" .. json.stringify(gms_umts_band))
+            if type(gms_umts_band) == "string" then
+                hex_gms_umts_band = gms_umts_band
+            else
+                for _, band in ipairs(gms_umts_band) do
+                    hex_gms_umts_band = hex_or(hex_gms_umts_band, band)
+                end
+            end
         end
+        sys.exec("logger -t ME909s DEBUG set hex_gms_umts_band" .. json.stringify(hex_gms_umts_band))
+        if hex_gms_umts_band == "0" then
+            hex_gms_umts_band = "40000000"
+        end
+        local hex_lte_band = "0"
         local lte_band = luci.http.formvalue("cbid.me909s.1.lte_band")
         if lte_band then
-            sys.exec("logger -t ME909s DEBUG set lte_band " .. json.stringify(lte_band) .. type(lte_band))
+            if type(lte_band) == "string" then
+                hex_lte_band = lte_band
+            else
+                for _, band in ipairs(lte_band) do
+                    hex_lte_band = hex_or(hex_lte_band, band)
+                end
+            end
         end
+        sys.exec("logger -t ME909s DEBUG set hex_lte_band" .. json.stringify(hex_lte_band))
+        if hex_lte_band == "0" then
+            hex_lte_band = "40000000"
+        end
+
+        local config = string.format('"%s",%s,%s,2,%s,,', mode, hex_gms_umts_band, roam, hex_lte_band)
+        sys.exec("/lib/me909s.sh submit_modem_config " .. ctl_device .." ".. config)
     end
 end
 return m
